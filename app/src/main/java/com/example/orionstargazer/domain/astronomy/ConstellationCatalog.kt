@@ -1,4 +1,4 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 import android.content.Context
 import org.json.JSONArray
@@ -40,5 +40,4 @@ object ConstellationCatalog {
         }
     }
 }
-
 

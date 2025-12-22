@@ -8,13 +8,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.orionstargazer.ar.StarRenderCapabilities
-import com.example.orionstargazer.astronomy.ConstellationCatalog
-import com.example.orionstargazer.astronomy.StarPositionCalculator
+import com.example.orionstargazer.domain.astronomy.ConstellationCatalog
+import com.example.orionstargazer.domain.astronomy.StarPositionCalculator
 import com.example.orionstargazer.data.StarRepository
 import com.example.orionstargazer.data.UserSettings
 import com.example.orionstargazer.ar.ConstellationDrawMode
 import com.example.orionstargazer.ar.StarRenderMode
-import com.example.orionstargazer.engine.SkyPipeline
+import com.example.orionstargazer.domain.engine.SkyPipeline
 import com.example.orionstargazer.sensors.LocationProvider
 import com.example.orionstargazer.sensors.OrientationProvider
 import kotlinx.coroutines.delay
@@ -36,6 +36,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private var lastConstellationUpdateMs: Long = 0L
     private var started: Boolean = false
+    private var candidateIndex: SkyPipeline.EquatorialIndex = pipeline.buildEquatorialIndex(emptyList())
 
     fun onPermissionsChanged(cameraGranted: Boolean, locationGranted: Boolean) {
         state = state.copy(
@@ -143,6 +144,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val effectiveLoc = loc ?: defaultLocation()
                 val candidates =
                     runCatching { pipeline.loadCandidates(state.maxMagnitude, effectiveLoc) }.getOrDefault(emptyList())
+                candidateIndex = pipeline.buildEquatorialIndex(candidates)
                 state = state.copy(
                     candidateStars = candidates,
                     usingFallbackLocation = !state.locationPermissionGranted || loc == null
@@ -170,8 +172,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val location = loc ?: defaultLocation()
                 val calendar = Calendar.getInstance()
 
-                val skyEntities = pipeline.buildSkyEntities(calendar, state.candidateStars)
-                val visible = pipeline.computeVisibleStars(calendar, location, az, alt, skyEntities)
+                // Stars: fast cone-search using equatorial unit-vector cache.
+                val visibleStars = pipeline.computeVisibleStarsFast(
+                    calendar = calendar,
+                    location = location,
+                    azimuth = az,
+                    altitude = alt,
+                    index = candidateIndex,
+                    fieldOfView = 60.0,
+                    minAltitude = 0.0
+                )
+
+                // Planets: small list, compute normally.
+                val planetEntities = pipeline.buildSkyEntities(calendar, emptyList())
+                val visiblePlanets = pipeline.computeVisibleStars(calendar, location, az, alt, planetEntities)
+
+                val visible = (visibleStars + visiblePlanets).sortedBy { it.star.magnitude }
 
                 val effectiveMode = resolveAutoMode(
                     selected = state.starRenderMode,

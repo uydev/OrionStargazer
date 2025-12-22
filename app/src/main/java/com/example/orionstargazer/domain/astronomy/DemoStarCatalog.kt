@@ -1,4 +1,4 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 data class Star(
     val name: String,
@@ -22,3 +22,4 @@ object DemoStarCatalog {
         Star("Betelgeuse", 88.7929, 7.4071, 0.50),
     )
 }
+

@@ -19,6 +19,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,8 +36,11 @@ import com.example.orionstargazer.ar.StarRenderMode
 import com.example.orionstargazer.ui.FrameRateTracker
 import com.example.orionstargazer.ui.LoadingPill
 import com.example.orionstargazer.ui.NightSkyBackground
+import com.example.orionstargazer.ui.OrientationDisplay
 import com.example.orionstargazer.ui.PermissionCallout
+import com.example.orionstargazer.ui.ReticleStarSelector
 import com.example.orionstargazer.ui.ReticleOverlay
+import com.example.orionstargazer.ui.SelectedStarCard
 
 @Composable
 fun MainScreen(
@@ -44,7 +51,7 @@ fun MainScreen(
     onStarSelected: (Int) -> Unit,
     onStarTapped: (com.example.orionstargazer.data.entities.StarEntity) -> Unit,
     onClearSelection: () -> Unit,
-    sceneViewRef: (com.google.ar.sceneform.ArSceneView?) -> Unit = {},
+    onReticleStarChanged: (com.example.orionstargazer.domain.astronomy.StarPositionCalculator.VisibleStar?) -> Unit = {},
     onRequestPermissions: () -> Unit = {},
     onOpenAppSettings: () -> Unit = {},
     onSetShowSettings: (Boolean) -> Unit = {},
@@ -52,6 +59,7 @@ fun MainScreen(
     onShaderMaxStarsChanged: (Int) -> Unit = {},
     onFpsSample: (Float) -> Unit = {},
     onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit = {},
+    onRequestLocationOnly: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state.showSettings) {
@@ -64,6 +72,8 @@ fun MainScreen(
         )
         return
     }
+
+    var sceneView by remember { mutableStateOf<com.google.ar.sceneform.ArSceneView?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         FrameRateTracker(onFps = onFpsSample)
@@ -81,7 +91,7 @@ fun MainScreen(
                     shaderMaxStars = state.shaderMaxStars,
                     onStarTapped = onStarTapped,
                     modifier = Modifier.fillMaxSize(),
-                    sceneViewRef = sceneViewRef
+                    sceneViewRef = { sceneView = it }
                 )
                 ReticleOverlay()
             }
@@ -98,6 +108,13 @@ fun MainScreen(
                     .padding(18.dp)
             )
         }
+
+        // Reticle selection (UI-layer, depends on ArSceneView).
+        ReticleStarSelector(
+            sceneView = sceneView,
+            stars = state.starsInView,
+            onStarChanged = onReticleStarChanged
+        )
 
         if (state.isSeeding && state.seedError == null) {
             LoadingPill(
@@ -117,8 +134,7 @@ fun MainScreen(
 
         SwipeableBottomSheet(
             orientationContent = {
-                // Reuse the existing OrientationDisplay in MainActivity file for now.
-                com.example.orionstargazer.OrientationDisplay(
+                OrientationDisplay(
                     azimuth = state.azimuth,
                     altitude = state.altitude,
                     modifier = Modifier.fillMaxSize()
@@ -144,12 +160,22 @@ fun MainScreen(
                     }
                     Spacer(Modifier.height(2.dp))
                     if (!state.locationPermissionGranted) {
-                        Text(
-                            text = "Location permission is off — using a default location.",
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFFFE9C7)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 18.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Location is off — using a default location.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFFE9C7),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = onRequestLocationOnly) {
+                                Text("Enable")
+                            }
+                        }
                     }
                     Text(
                         text = "Catalog: ${state.dbCount}  •  Mag ≤ ${"%.1f".format(state.maxMagnitude)}  •  Candidates: ${state.candidateStars.size}  •  In view: ${state.starsInView.size}",
@@ -225,7 +251,7 @@ fun MainScreen(
                         exit = fadeOut() + slideOutVertically { it / 3 }
                     ) {
                         state.highlightedStar?.let { star ->
-                            com.example.orionstargazer.SelectedStarCard(
+                            SelectedStarCard(
                                 star = star,
                                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                                 onClear = onClearSelection

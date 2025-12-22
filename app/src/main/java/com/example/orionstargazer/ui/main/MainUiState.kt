@@ -4,7 +4,7 @@ import com.example.orionstargazer.ar.ConstellationRenderer
 import com.example.orionstargazer.ar.ConstellationDrawMode
 import com.example.orionstargazer.ar.StarRenderCapabilities
 import com.example.orionstargazer.ar.StarRenderMode
-import com.example.orionstargazer.astronomy.StarPositionCalculator
+import com.example.orionstargazer.domain.astronomy.StarPositionCalculator
 import com.example.orionstargazer.data.entities.StarEntity
 
 data class MainUiState(

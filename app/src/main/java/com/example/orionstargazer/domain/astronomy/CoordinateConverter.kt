@@ -1,4 +1,4 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 import kotlin.math.*
 import java.util.Calendar
@@ -78,3 +78,4 @@ object CoordinateConverter {
         return Pair(altitudeDeg, azimuthDeg)
     }
 }
+

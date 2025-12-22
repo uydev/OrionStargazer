@@ -1,14 +1,18 @@
-package com.example.orionstargazer.engine
+package com.example.orionstargazer.domain.engine
 
 import android.location.Location
 import com.example.orionstargazer.ar.ConstellationRenderer
-import com.example.orionstargazer.astronomy.ConstellationCatalog
-import com.example.orionstargazer.astronomy.PlanetCalculator
-import com.example.orionstargazer.astronomy.StarPositionCalculator
 import com.example.orionstargazer.data.StarRepository
 import com.example.orionstargazer.data.entities.StarEntity
+import com.example.orionstargazer.domain.astronomy.ConstellationCatalog
+import com.example.orionstargazer.domain.astronomy.CoordinateConverter
+import com.example.orionstargazer.domain.astronomy.PlanetCalculator
+import com.example.orionstargazer.domain.astronomy.StarPositionCalculator
 import com.google.ar.sceneform.math.Vector3
 import java.util.Calendar
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * “Engine layer” orchestrator:
@@ -22,16 +26,39 @@ class SkyPipeline(
     private val repo: StarRepository,
     private val constellations: List<ConstellationCatalog.Constellation>
 ) {
+    /**
+     * Simple “spatial index” for fixed equatorial coordinates:
+     * precompute unit vectors for stars from (RA, Dec).
+     *
+     * Querying is a cone test using dot product >= cos(maxAngle).
+     */
+    data class EquatorialIndex(
+        val stars: List<StarEntity>,
+        val x: FloatArray,
+        val y: FloatArray,
+        val z: FloatArray
+    )
+
+    fun buildEquatorialIndex(stars: List<StarEntity>): EquatorialIndex {
+        val x = FloatArray(stars.size)
+        val y = FloatArray(stars.size)
+        val z = FloatArray(stars.size)
+        stars.forEachIndexed { i, s ->
+            val ra = Math.toRadians(s.ra)
+            val dec = Math.toRadians(s.dec)
+            val cosDec = cos(dec)
+            x[i] = (cosDec * cos(ra)).toFloat()
+            y[i] = (cosDec * sin(ra)).toFloat()
+            z[i] = sin(dec).toFloat()
+        }
+        return EquatorialIndex(stars = stars, x = x, y = y, z = z)
+    }
+
     data class ConstellationDetection(
         val name: String,
         val score: Float
     )
 
-    data class DetectedConstellationResult(
-        val name: String,
-        val score: Float,
-        val segments: List<ConstellationRenderer.Segment>
-    )
     data class CatalogStatus(
         val dbCount: Int,
         val allStarsById: Map<Int, StarEntity>
@@ -97,6 +124,86 @@ class SkyPipeline(
             minAltitude = 0.0,
             stars = stars
         )
+    }
+
+    /**
+     * Faster visibility: use equatorial dot-product cone test first, then compute alt/az only
+     * for survivors. This avoids doing expensive trig for thousands of stars every tick.
+     *
+     * NOTE: Index should only contain *stars* (not planets). Planets move, so handle separately.
+     */
+    fun computeVisibleStarsFast(
+        calendar: Calendar,
+        location: Location,
+        azimuth: Float,
+        altitude: Float,
+        index: EquatorialIndex,
+        fieldOfView: Double = 60.0,
+        minAltitude: Double = 0.0
+    ): List<StarPositionCalculator.VisibleStar> {
+        val jd = CoordinateConverter.julianDate(calendar)
+        val lstDeg = CoordinateConverter.localSiderealTime(jd, location.longitude)
+        val latDeg = location.latitude
+
+        // Convert device (alt/az) into equatorial (RA/Dec), then into a unit vector.
+        val (raDeg, decDeg) = horizontalToEquatorial(
+            altitudeDeg = altitude.toDouble(),
+            azimuthDeg = azimuth.toDouble(),
+            latitudeDeg = latDeg,
+            lstDeg = lstDeg
+        )
+        val ra = Math.toRadians(raDeg)
+        val dec = Math.toRadians(decDeg)
+        val cosDec = cos(dec)
+        val vx = (cosDec * cos(ra)).toFloat()
+        val vy = (cosDec * sin(ra)).toFloat()
+        val vz = sin(dec).toFloat()
+
+        val maxAngleRad = Math.toRadians(fieldOfView / 2.0)
+        val cosMax = cos(maxAngleRad).toFloat()
+
+        val out = ArrayList<StarPositionCalculator.VisibleStar>(256)
+        for (i in index.stars.indices) {
+            val dot = index.x[i] * vx + index.y[i] * vy + index.z[i] * vz
+            if (dot < cosMax) continue
+
+            val s = index.stars[i]
+            val (alt, az) = StarPositionCalculator.computeAltAzFromLst(
+                latitude = latDeg,
+                lstDeg = lstDeg,
+                star = s
+            )
+            if (alt > minAltitude) {
+                out.add(StarPositionCalculator.VisibleStar(s, alt, az))
+            }
+        }
+        return out
+    }
+
+    private fun horizontalToEquatorial(
+        altitudeDeg: Double,
+        azimuthDeg: Double,
+        latitudeDeg: Double,
+        lstDeg: Double
+    ): Pair<Double, Double> {
+        // Convert horizontal (Alt/Az) -> equatorial (RA/Dec)
+        // Assumes Azimuth is measured from North, increasing towards East (0..360).
+        val alt = Math.toRadians(altitudeDeg)
+        val az = Math.toRadians(azimuthDeg)
+        val lat = Math.toRadians(latitudeDeg)
+
+        val sinDec = sin(alt) * sin(lat) + cos(alt) * cos(lat) * cos(az)
+        val dec = Math.asin(sinDec)
+        val cosDec = cos(dec)
+
+        // Hour angle (H): use atan2 to preserve quadrant
+        val sinH = -sin(az) * cos(alt) / cosDec
+        val cosH = (sin(alt) - sin(lat) * sinDec) / (cos(lat) * cosDec)
+        val H = Math.atan2(sinH, cosH) // radians, -pi..pi
+
+        val raDeg = ((lstDeg - Math.toDegrees(H)) % 360.0 + 360.0) % 360.0
+        val decDeg = Math.toDegrees(dec)
+        return raDeg to decDeg
     }
 
     fun buildConstellationSegments(

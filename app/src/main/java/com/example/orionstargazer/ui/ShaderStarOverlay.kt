@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import com.example.orionstargazer.ar.ScreenProjectionUtil
-import com.example.orionstargazer.astronomy.StarPositionCalculator
+import com.example.orionstargazer.domain.astronomy.StarPositionCalculator
 import com.google.ar.sceneform.ArSceneView
 import com.google.ar.sceneform.math.Vector3
 import kotlinx.coroutines.isActive

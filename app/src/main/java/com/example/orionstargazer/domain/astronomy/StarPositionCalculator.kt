@@ -1,4 +1,4 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 import android.location.Location
 import java.util.Calendar
@@ -41,8 +41,15 @@ object StarPositionCalculator {
     ): Pair<Double, Double> {
         val jd = CoordinateConverter.julianDate(calendar)
         val lst = CoordinateConverter.localSiderealTime(jd, location.longitude)
-        val latitude = location.latitude
-        val ha = CoordinateConverter.hourAngle(lst, star.ra)
+        return computeAltAzFromLst(latitude = location.latitude, lstDeg = lst, star = star)
+    }
+
+    fun computeAltAzFromLst(
+        latitude: Double,
+        lstDeg: Double,
+        star: com.example.orionstargazer.data.entities.StarEntity
+    ): Pair<Double, Double> {
+        val ha = CoordinateConverter.hourAngle(lstDeg, star.ra)
         return CoordinateConverter.equatorialToHorizontal(latitude, star.dec, ha)
     }
 
@@ -80,3 +87,4 @@ object StarPositionCalculator {
         return diff
     }
 }
+

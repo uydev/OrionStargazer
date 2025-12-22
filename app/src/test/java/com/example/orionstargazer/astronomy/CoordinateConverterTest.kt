@@ -1,4 +1,4 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

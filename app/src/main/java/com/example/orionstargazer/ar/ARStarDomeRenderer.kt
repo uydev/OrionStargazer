@@ -1,7 +1,7 @@
 package com.example.orionstargazer.ar
 
 import com.example.orionstargazer.R
-import com.example.orionstargazer.astronomy.StarPositionCalculator
+import com.example.orionstargazer.domain.astronomy.StarPositionCalculator
 import com.google.ar.sceneform.FrameTime
 import com.google.ar.sceneform.ArSceneView
 import com.google.ar.sceneform.Node

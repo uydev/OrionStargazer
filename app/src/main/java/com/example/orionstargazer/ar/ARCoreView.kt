@@ -10,7 +10,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.example.orionstargazer.astronomy.StarPositionCalculator
+import com.example.orionstargazer.domain.astronomy.StarPositionCalculator
 import com.example.orionstargazer.ui.ShaderStarOverlay
 import com.google.ar.sceneform.ArSceneView
 

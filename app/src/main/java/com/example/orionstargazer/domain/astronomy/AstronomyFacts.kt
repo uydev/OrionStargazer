@@ -1,7 +1,6 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 import com.example.orionstargazer.data.entities.StarEntity
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**

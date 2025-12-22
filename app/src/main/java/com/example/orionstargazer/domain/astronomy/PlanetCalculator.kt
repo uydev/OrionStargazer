@@ -1,4 +1,4 @@
-package com.example.orionstargazer.astronomy
+package com.example.orionstargazer.domain.astronomy
 
 import java.util.Calendar
 import kotlin.math.PI
@@ -41,11 +41,6 @@ object PlanetCalculator {
             val ra = normalizeDeg(radToDeg(atan2(yeq, xeq)))
             val dec = radToDeg(atan2(zeq, sqrt(xeq * xeq + yeq * yeq)))
             return ra to dec
-        }
-
-        fun geoFromHelio(p: HelioEcl): Triple<Double, Double, Double> {
-            // Geocentric = helio(planet) - helio(earth)
-            return Triple(p.x - earth.x, p.y - earth.y, p.z - earth.z)
         }
 
         // Sun (approx): opposite of Earth's heliocentric vector.
@@ -218,5 +213,4 @@ object PlanetCalculator {
         return x
     }
 }
-
 
