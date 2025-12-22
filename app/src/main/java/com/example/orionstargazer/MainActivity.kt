@@ -74,10 +74,16 @@ class MainActivity : ComponentActivity() {
                     onRequestLocationOnly = { permissionLauncher.launch(locationOnlyPermissions) },
                     onOpenAppSettings = { openAppSettings() },
                     onSetShowSettings = { show -> vm.setShowSettings(show) },
+                    onSetShowHighlights = { show -> vm.setShowHighlights(show) },
                     onStarRenderModeChanged = { mode -> vm.setStarRenderMode(mode) },
                     onShaderMaxStarsChanged = { v -> vm.setShaderMaxStars(v) },
                     onFpsSample = { fps -> vm.onFpsSample(fps) },
                     onConstellationDrawModeChanged = { mode -> vm.setConstellationDrawMode(mode) }
+                    ,
+                    onPinchMagnitudeChange = { delta ->
+                        val next = (state.maxMagnitude + delta).coerceIn(0.0, 8.0)
+                        vm.setMaxMagnitude(next)
+                    }
                 )
             }
         }

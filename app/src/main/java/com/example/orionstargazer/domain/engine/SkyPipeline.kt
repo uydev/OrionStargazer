@@ -126,6 +126,23 @@ class SkyPipeline(
         )
     }
 
+    fun buildAltAzCache(
+        calendar: Calendar,
+        location: Location,
+        stars: Collection<StarEntity>
+    ): Map<Int, Pair<Double, Double>> {
+        val jd = CoordinateConverter.julianDate(calendar)
+        val lst = CoordinateConverter.localSiderealTime(jd, location.longitude)
+        val latitude = location.latitude
+        return stars.associate { star ->
+            star.id to StarPositionCalculator.computeAltAzFromLst(
+                latitude = latitude,
+                lstDeg = lst,
+                star = star
+            )
+        }
+    }
+
     /**
      * Faster visibility: use equatorial dot-product cone test first, then compute alt/az only
      * for survivors. This avoids doing expensive trig for thousands of stars every tick.
@@ -211,15 +228,16 @@ class SkyPipeline(
         location: Location,
         azimuth: Float,
         altitude: Float,
-        allStarsById: Map<Int, StarEntity>
+        allStarsById: Map<Int, StarEntity>,
+        altAzCache: Map<Int, Pair<Double, Double>>
     ): List<ConstellationRenderer.Segment> {
         val segments = mutableListOf<ConstellationRenderer.Segment>()
         constellations.forEach { constellation ->
             constellation.lines.forEach { line ->
                 val a = allStarsById[line.aStarId] ?: return@forEach
                 val b = allStarsById[line.bStarId] ?: return@forEach
-                val (altA, azA) = StarPositionCalculator.computeAltAz(calendar, location, a)
-                val (altB, azB) = StarPositionCalculator.computeAltAz(calendar, location, b)
+                val (altA, azA) = altAzCache[a.id] ?: StarPositionCalculator.computeAltAz(calendar, location, a)
+                val (altB, azB) = altAzCache[b.id] ?: StarPositionCalculator.computeAltAz(calendar, location, b)
                 if (altA <= 0.0 || altB <= 0.0) return@forEach
                 val nearA = StarPositionCalculator.viewDistanceDegrees(azA, altA, azimuth, altitude) < 80.0
                 val nearB = StarPositionCalculator.viewDistanceDegrees(azB, altB, azimuth, altitude) < 80.0
@@ -246,7 +264,8 @@ class SkyPipeline(
     fun detectConstellation(
         visibleStars: List<StarPositionCalculator.VisibleStar>,
         deviceAzimuth: Float,
-        deviceAltitude: Float
+        deviceAltitude: Float,
+        altAzCache: Map<Int, Pair<Double, Double>>
     ): ConstellationDetection? {
         if (visibleStars.isEmpty()) return null
 
@@ -305,7 +324,8 @@ class SkyPipeline(
         location: Location,
         azimuth: Float,
         altitude: Float,
-        allStarsById: Map<Int, StarEntity>
+        allStarsById: Map<Int, StarEntity>,
+        altAzCache: Map<Int, Pair<Double, Double>>
     ): List<ConstellationRenderer.Segment> {
         val constellation = constellations.firstOrNull { it.name == constellationName } ?: return emptyList()
 
@@ -313,8 +333,8 @@ class SkyPipeline(
         constellation.lines.forEach { line ->
             val a = allStarsById[line.aStarId] ?: return@forEach
             val b = allStarsById[line.bStarId] ?: return@forEach
-            val (altA, azA) = StarPositionCalculator.computeAltAz(calendar, location, a)
-            val (altB, azB) = StarPositionCalculator.computeAltAz(calendar, location, b)
+            val (altA, azA) = altAzCache[a.id] ?: StarPositionCalculator.computeAltAz(calendar, location, a)
+            val (altB, azB) = altAzCache[b.id] ?: StarPositionCalculator.computeAltAz(calendar, location, b)
             if (altA <= 0.0 || altB <= 0.0) return@forEach
 
             val nearA = StarPositionCalculator.viewDistanceDegrees(azA, altA, azimuth, altitude) < 90.0

@@ -91,6 +91,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         state = state.copy(highlightedStar = star)
     }
 
+    fun setShowHighlights(show: Boolean) {
+        state = state.copy(showHighlights = show)
+    }
+
     fun start() {
         if (started) return
         started = true
@@ -187,6 +191,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val planetEntities = pipeline.buildSkyEntities(calendar, emptyList())
                 val visiblePlanets = pipeline.computeVisibleStars(calendar, location, az, alt, planetEntities)
 
+                val altAzCache = pipeline.buildAltAzCache(calendar, location, cachedAllStarsById.values)
                 val visible = (visibleStars + visiblePlanets).sortedBy { it.star.magnitude }
 
                 val effectiveMode = resolveAutoMode(
@@ -207,7 +212,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                     location = location,
                                     azimuth = az,
                                     altitude = alt,
-                                    allStarsById = cachedAllStarsById
+                                    allStarsById = cachedAllStarsById,
+                                    altAzCache = altAzCache
                                 )
                                 secondarySegments = emptyList()
                                 state = state.copy(
@@ -221,7 +227,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                 val detection = pipeline.detectConstellation(
                                     visibleStars = visible,
                                     deviceAzimuth = az,
-                                    deviceAltitude = alt
+                                    deviceAltitude = alt,
+                                    altAzCache = altAzCache
                                 )
 
                                 // Hysteresis to reduce flicker.
@@ -254,7 +261,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                         location = location,
                                         azimuth = az,
                                         altitude = alt,
-                                        allStarsById = cachedAllStarsById
+                                        allStarsById = cachedAllStarsById,
+                                        altAzCache = altAzCache
                                     )
                                 } else {
                                     emptyList()
@@ -266,7 +274,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                         location = location,
                                         azimuth = az,
                                         altitude = alt,
-                                        allStarsById = cachedAllStarsById
+                                        allStarsById = cachedAllStarsById,
+                                        altAzCache = altAzCache
                                     )
                                     val filtered = if (nextName != null) {
                                         allNearby.filterNot { it.key.startsWith("$nextName:") }
@@ -295,6 +304,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
 
+                val highlightTexts = buildHighlights(visible)
+
                 state = state.copy(
                     azimuth = az,
                     altitude = alt,
@@ -303,6 +314,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     constellationSecondarySegments = secondarySegments,
                     usingFallbackLocation = !state.locationPermissionGranted || loc == null,
                     effectiveStarRenderMode = effectiveMode
+                    ,
+                    highlights = highlightTexts
                 )
                 delay(100)
             }
@@ -342,6 +355,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             f < 35f -> StarRenderMode.SOLID
             f >= 52f && capabilities.supportsCustomShaderGlow -> StarRenderMode.CUSTOM_SHADER_GLOW
             else -> StarRenderMode.GLOW_TEXTURE
+        }
+    }
+
+    private fun buildHighlights(visible: List<StarPositionCalculator.VisibleStar>): List<String> {
+        if (visible.isEmpty()) return emptyList()
+        return visible.take(4).mapIndexed { index, star ->
+            val mag = "%.2f".format(star.star.magnitude)
+            val alt = "%.0f".format(star.altitude)
+            val az = "%.0f".format(star.azimuth)
+            "${index + 1}. ${star.star.name} • mag $mag • Alt $alt° Az $az°"
         }
     }
 }

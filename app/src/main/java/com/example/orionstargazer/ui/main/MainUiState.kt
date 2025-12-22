@@ -17,6 +17,8 @@ data class MainUiState(
     val maxMagnitude: Double = 6.0,
     val showConstellations: Boolean = true,
     val constellationDrawMode: ConstellationDrawMode = ConstellationDrawMode.DETECTED,
+    val showHighlights: Boolean = false,
+    val highlights: List<String> = emptyList(),
     val showSettings: Boolean = false,
     val starRenderMode: StarRenderMode = StarRenderMode.GLOW_TEXTURE,
     val starRenderCapabilities: StarRenderCapabilities? = null,

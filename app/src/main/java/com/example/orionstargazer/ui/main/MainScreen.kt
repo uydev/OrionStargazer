@@ -28,19 +28,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.pointer.pointerInput
 import com.example.orionstargazer.StarList
 import com.example.orionstargazer.SwipeableBottomSheet
 import com.example.orionstargazer.ar.ARCoreView
 import com.example.orionstargazer.ar.ConstellationDrawMode
 import com.example.orionstargazer.ar.StarRenderMode
 import com.example.orionstargazer.ui.FrameRateTracker
+import com.example.orionstargazer.ui.HighlightsScreen
 import com.example.orionstargazer.ui.LoadingPill
 import com.example.orionstargazer.ui.NightSkyBackground
-import com.example.orionstargazer.ui.OrientationDisplay
+import com.example.orionstargazer.ui.OverlayCompass
 import com.example.orionstargazer.ui.PermissionCallout
 import com.example.orionstargazer.ui.ReticleStarSelector
 import com.example.orionstargazer.ui.ReticleOverlay
 import com.example.orionstargazer.ui.SelectedStarCard
+import com.example.orionstargazer.ui.SkyStatusBar
+import com.example.orionstargazer.ui.OrientationDisplay
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.gestures.detectTransformGestures
 
 @Composable
 fun MainScreen(
@@ -53,13 +59,15 @@ fun MainScreen(
     onClearSelection: () -> Unit,
     onReticleStarChanged: (com.example.orionstargazer.domain.astronomy.StarPositionCalculator.VisibleStar?) -> Unit = {},
     onRequestPermissions: () -> Unit = {},
+    onRequestLocationOnly: () -> Unit = {},
     onOpenAppSettings: () -> Unit = {},
     onSetShowSettings: (Boolean) -> Unit = {},
+    onSetShowHighlights: (Boolean) -> Unit = {},
     onStarRenderModeChanged: (StarRenderMode) -> Unit = {},
     onShaderMaxStarsChanged: (Int) -> Unit = {},
     onFpsSample: (Float) -> Unit = {},
     onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit = {},
-    onRequestLocationOnly: () -> Unit = {},
+    onPinchMagnitudeChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state.showSettings) {
@@ -75,9 +83,29 @@ fun MainScreen(
 
     var sceneView by remember { mutableStateOf<com.google.ar.sceneform.ArSceneView?>(null) }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTransformGestures { _, _, zoom, _ ->
+                    val delta = (zoom - 1f) * 3f
+                    if (kotlin.math.abs(delta) > 0.01f) {
+                        onPinchMagnitudeChange(delta)
+                    }
+                }
+            }
+    ) {
         FrameRateTracker(onFps = onFpsSample)
         NightSkyBackground(modifier = Modifier.fillMaxSize())
+        SkyStatusBar(
+            cameraOk = state.cameraPermissionGranted,
+            locationOk = state.locationPermissionGranted,
+            magnitude = state.maxMagnitude,
+            fps = state.measuredFps,
+            constellationMode = state.constellationDrawMode.name.take(6),
+            caps = state.shaderMaxStars.toString(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
 
         if (state.cameraPermissionGranted) {
             Box(Modifier.fillMaxSize()) {
@@ -114,6 +142,13 @@ fun MainScreen(
             sceneView = sceneView,
             stars = state.starsInView,
             onStarChanged = onReticleStarChanged
+        )
+
+        OverlayCompass(
+            azimuth = state.azimuth,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 110.dp)
         )
 
         if (state.isSeeding && state.seedError == null) {
@@ -156,6 +191,9 @@ fun MainScreen(
                         )
                         TextButton(onClick = { onSetShowSettings(true) }) {
                             Text("Settings")
+                        }
+                        TextButton(onClick = { onSetShowHighlights(true) }) {
+                            Text("Highlights")
                         }
                     }
                     Spacer(Modifier.height(2.dp))
@@ -278,6 +316,15 @@ fun MainScreen(
                 }
             }
         )
+
+        if (state.showHighlights) {
+            Dialog(onDismissRequest = { onSetShowHighlights(false) }) {
+                HighlightsScreen(
+                    highlights = if (state.highlights.isNotEmpty()) state.highlights else listOf("Scanning night sky…"),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
     }
 }
 
