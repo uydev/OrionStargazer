@@ -1,0 +1,13 @@
+[
+  {"id":1,"name":"Sirius","ra":101.2875,"dec":-16.7161,"magnitude":-1.46,"distance":8.6,"spectralType":"A1V","constellation":"Canis Major"},
+  {"id":2,"name":"Canopus","ra":95.9879,"dec":-52.6957,"magnitude":-0.72,"distance":310,"spectralType":"A9II","constellation":"Carina"},
+  {"id":3,"name":"Arcturus","ra":213.9153,"dec":19.1825,"magnitude":-0.05,"distance":37,"spectralType":"K1.5III","constellation":"Boötes"},
+  {"id":4,"name":"Alpha Centauri","ra":219.9021,"dec":-60.8339,"magnitude":-0.27,"distance":4.4,"spectralType":"G2V","constellation":"Centaurus"},
+  {"id":5,"name":"Vega","ra":279.2347,"dec":38.7837,"magnitude":0.03,"distance":25,"spectralType":"A0V","constellation":"Lyra"},
+  {"id":6,"name":"Capella","ra":79.1723,"dec":45.9979,"magnitude":0.08,"distance":42,"spectralType":"G8III","constellation":"Auriga"},
+  {"id":7,"name":"Rigel","ra":78.6345,"dec":-8.2016,"magnitude":0.12,"distance":860,"spectralType":"B8Iae","constellation":"Orion"},
+  {"id":8,"name":"Procyon","ra":114.8255,"dec":5.225,"magnitude":0.38,"distance":11.5,"spectralType":"F5IV-V","constellation":"Canis Minor"},
+  {"id":9,"name":"Achernar","ra":24.4286,"dec":-57.2368,"magnitude":0.46,"distance":140,"spectralType":"B6Vep","constellation":"Eridanus"},
+  {"id":10,"name":"Betelgeuse","ra":88.7929,"dec":7.4071,"magnitude":0.50,"distance":548,"spectralType":"M2Iab","constellation":"Orion"}
+]
+
