@@ -1,15 +1,20 @@
 package com.example.orionstargazer
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
+import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.res.Resources
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,11 +34,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,54 +44,48 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.orionstargazer.StarList
 import com.example.orionstargazer.ar.ARCoreView
-import com.example.orionstargazer.ar.ConstellationRenderer
 import com.example.orionstargazer.ar.ScreenProjectionUtil
-import com.example.orionstargazer.astronomy.ConstellationCatalog
-import com.example.orionstargazer.astronomy.PlanetCalculator
+import com.example.orionstargazer.astronomy.AstronomyFacts
 import com.example.orionstargazer.astronomy.StarPositionCalculator
-import com.example.orionstargazer.data.StarRepository
-import com.example.orionstargazer.data.UserSettings
-import com.example.orionstargazer.sensors.LocationProvider
-import com.example.orionstargazer.sensors.OrientationProvider
-import com.example.orionstargazer.ui.NightSkyBackground
-import com.example.orionstargazer.ui.ReticleOverlay
-import com.example.orionstargazer.SwipeableBottomSheet
+import com.example.orionstargazer.ui.EducationFactsSection
 import com.example.orionstargazer.ui.theme.OrionStargazerTheme
 import com.google.ar.sceneform.ArSceneView
 import com.google.ar.sceneform.math.Vector3
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
-import java.util.Calendar
+import kotlinx.coroutines.delay
+import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
+import com.example.orionstargazer.ui.main.MainScreen
+import com.example.orionstargazer.ui.main.MainViewModel
+import com.example.orionstargazer.ar.StarRenderMode
 
 class MainActivity : ComponentActivity() {
-    private lateinit var orientationProvider: OrientationProvider
-    private lateinit var locationProvider: LocationProvider
+    private val vm: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        orientationProvider = OrientationProvider(this)
-        locationProvider = LocationProvider(this)
+        enableEdgeToEdge()
 
         var cameraPermissionGranted by mutableStateOf(false)
+        var locationPermissionGranted by mutableStateOf(false)
 
         val permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { results ->
             cameraPermissionGranted = results[Manifest.permission.CAMERA] == true
-            if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-                locationProvider.start()
-            }
+            val fine = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+            val coarse = results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            locationPermissionGranted = fine || coarse
+            vm.onPermissionsChanged(cameraPermissionGranted, locationPermissionGranted)
         }
 
         val permissions = arrayOf(
             Manifest.permission.CAMERA,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
         )
 
         val missing = permissions.filter {
@@ -99,285 +96,65 @@ class MainActivity : ComponentActivity() {
             permissionLauncher.launch(missing.toTypedArray())
         } else {
             cameraPermissionGranted = true
-            locationProvider.start()
+            locationPermissionGranted = true
+            vm.onPermissionsChanged(cameraPermissionGranted, locationPermissionGranted)
         }
 
-        orientationProvider.start()
+        vm.start()
 
         setContent {
             OrionStargazerTheme(darkTheme = true, dynamicColor = false) {
-                var azimuth by remember { mutableStateOf(0f) }
-                var altitude by remember { mutableStateOf(0f) }
-                var starsInView by remember { mutableStateOf(listOf<StarPositionCalculator.VisibleStar>()) }
-                var candidateStars by remember { mutableStateOf(emptyList<com.example.orionstargazer.data.entities.StarEntity>()) }
-                var dbCount by remember { mutableStateOf(0) }
-                var seedError by remember { mutableStateOf<String?>(null) }
-                var maxMagnitude by remember { mutableStateOf(UserSettings.DEFAULT_MAX_MAGNITUDE) }
-                var showConstellations by remember { mutableStateOf(true) }
-                var constellationSegments by remember { mutableStateOf(emptyList<ConstellationRenderer.Segment>()) }
+                val state = vm.state
                 var sceneView by remember { mutableStateOf<ArSceneView?>(null) }
-                var highlightedStar by remember { mutableStateOf<StarPositionCalculator.VisibleStar?>(null) }
-
-                val repo = remember { StarRepository.getInstance(this@MainActivity) }
-                val constellations = remember { ConstellationCatalog.load(this@MainActivity) }
                 val reticleSizeDp = 48
 
-                LaunchedEffect(Unit) {
-                    try {
-                        val existing = repo.countStars()
-                        if (existing < 2000) {
-                            repo.deleteAll()
-                            com.example.orionstargazer.data.StarAssetLoader.loadAssetsAndSeedDb(this@MainActivity, repo)
-                            com.example.orionstargazer.data.HygCsvImporter.importTopBrightest(this@MainActivity, repo, limit = 3000)
-                        }
-                    } catch (t: Throwable) {
-                        Log.e("MainActivity", "Star seed failed", t)
-                        seedError = "${t.javaClass.simpleName}: ${t.message ?: "unknown"}"
-                    }
-                    dbCount = try { repo.countStars() } catch (_: Throwable) { -1 }
-                }
-
-                LaunchedEffect(Unit) {
-                    UserSettings.maxMagnitudeFlow(this@MainActivity).collectLatest {
-                        maxMagnitude = it
-                    }
-                }
-
-                LaunchedEffect(maxMagnitude) {
+                LaunchedEffect(sceneView, state.starsInView) {
                     while (true) {
-                        val loc = locationProvider.location ?: defaultLocation()
-                        val minDec = (loc.latitude - 90).coerceAtLeast(-90.0)
-                        val maxDec = (loc.latitude + 90).coerceAtMost(90.0)
-                        candidateStars = repo.getCandidates(maxMagnitude, minDec, maxDec)
-                        delay(2000)
+                        val candidate = computeStarInReticle(sceneView, state.starsInView, reticleSizeDp)
+                        vm.setHighlightedStar(candidate)
+                        delay(150)
                     }
                 }
 
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        azimuth = orientationProvider.azimuth
-                        altitude = orientationProvider.altitude
-                        val location = locationProvider.location ?: defaultLocation()
-                        val calendar = Calendar.getInstance()
-
-                        val planetEntities = PlanetCalculator.computePlanets(calendar).map { p ->
-                            com.example.orionstargazer.data.entities.StarEntity(
-                                id = -1000 - p.id,
-                                name = p.name,
-                                ra = p.raDeg,
-                                dec = p.decDeg,
-                                magnitude = p.magnitude,
-                                distance = p.distanceAu * 63241.1,
-                                spectralType = "P",
-                                constellation = "Planet"
-                            )
-                        }
-
-                        val skyEntities = (candidateStars + planetEntities).distinctBy { it.id }
-
-                        starsInView = StarPositionCalculator.calculateVisibleStars(
-                            calendar,
-                            location,
-                            azimuth,
-                            altitude,
-                            fieldOfView = 60.0,
-                            minAltitude = 0.0,
-                            stars = skyEntities
-                        )
-
-                        val listCandidates = StarPositionCalculator.calculateVisibleStars(
-                            calendar,
-                            location,
-                            azimuth,
-                            altitude,
-                            fieldOfView = 360.0,
-                            minAltitude = 0.0,
-                            stars = skyEntities
-                        )
-
-                        highlightedStar = computeStarInReticle(sceneView, starsInView, reticleSizeDp)
-
-                        if (showConstellations) {
-                            constellationSegments = buildConstellations(
-                                constellations,
-                                repo,
-                                calendar,
-                                location,
-                                azimuth,
-                                altitude
-                            )
-                        } else {
-                            constellationSegments = emptyList()
-                        }
-
-                        delay(100)
-                    }
-                }
-
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        NightSkyBackground(modifier = Modifier.fillMaxSize())
-
-                        if (cameraPermissionGranted) {
-                            Box(Modifier.fillMaxSize()) {
-                                ARCoreView(
-                                    stars = starsInView,
-                                    constellationSegments = constellationSegments,
-                                    showConstellations = showConstellations,
-                                    onStarTapped = { star ->
-                                        highlightedStar = starsInView.firstOrNull { visible -> visible.star.id == star.id }
-                                    },
-                                    modifier = Modifier.fillMaxSize(),
-                                    sceneViewRef = { sceneView = it }
-                                )
-                                ReticleOverlay()
-                            }
-                        }
-
-                        SwipeableBottomSheet(
-                            orientationContent = {
-                                OrientationDisplay(
-                                    azimuth = azimuth,
-                                    altitude = altitude,
-                                    modifier = Modifier.padding(innerPadding)
-                                )
-                            },
-                            starListContent = {
-                                Column {
-                                    Text(
-                                        text = "Catalog: $dbCount  •  Mag ≤ ${"%.1f".format(maxMagnitude)}  •  Candidates: ${candidateStars.size}  •  In view: ${starsInView.size}",
-                                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) {
-                                        Text(
-                                            text = "Magnitude limit",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFFEAF2FF)
-                                        )
-                                        val scope = rememberCoroutineScope()
-                                        Slider(
-                                            value = maxMagnitude.toFloat(),
-                                            onValueChange = { maxMagnitude = it.toDouble() },
-                                            onValueChangeFinished = {
-                                                scope.launch {
-                                                    UserSettings.setMaxMagnitude(this@MainActivity, maxMagnitude)
-                                                }
-                                            },
-                                            valueRange = 0f..8f,
-                                            steps = 15
-                                        )
-                                    }
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 18.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Constellations",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFFEAF2FF),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Switch(
-                                            checked = showConstellations,
-                                            onCheckedChange = { showConstellations = it }
-                                        )
-                                    }
-                                    seedError?.let {
-                                        Text(
-                                            text = "Seed error: $it",
-                                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                    highlightedStar?.let { star ->
-                                        SelectedStarCard(
-                                            star = star,
-                                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                                            onClear = { highlightedStar = null }
-                                        )
-                                    } ?: Text(
-                                        text = "Aim the reticle at a star for details.",
-                                        color = Color(0xFFA9B9FF),
-                                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
-                                    )
-                                    StarList(
-                                        stars = starsInView,
-                                        selectedStarId = highlightedStar?.star?.id,
-                                        onStarSelected = { id ->
-                                            highlightedStar = starsInView.firstOrNull { visible -> visible.star.id == id }
-                                        }
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        orientationProvider.stop()
-        locationProvider.stop()
-        super.onDestroy()
-    }
-
-    private suspend fun buildConstellations(
-        constellations: List<com.example.orionstargazer.astronomy.ConstellationCatalog.Constellation>,
-        repo: StarRepository,
-        calendar: Calendar,
-        location: Location,
-        azimuth: Float,
-        altitude: Float
-    ): List<ConstellationRenderer.Segment> {
-        val byId = repo.getAllStars().associateBy { it.id }
-        val segments = mutableListOf<ConstellationRenderer.Segment>()
-        constellations.forEach { constellation ->
-            constellation.lines.forEach { line ->
-                val a = byId[line.aStarId] ?: return@forEach
-                val b = byId[line.bStarId] ?: return@forEach
-                val (altA, azA) = StarPositionCalculator.computeAltAz(calendar, location, a)
-                val (altB, azB) = StarPositionCalculator.computeAltAz(calendar, location, b)
-                if (altA <= 0.0 || altB <= 0.0) return@forEach
-                val nearA = StarPositionCalculator.viewDistanceDegrees(azA, altA, azimuth, altitude) < 80.0
-                val nearB = StarPositionCalculator.viewDistanceDegrees(azB, altB, azimuth, altitude) < 80.0
-                if (!nearA && !nearB) return@forEach
-                segments.add(
-                    ConstellationRenderer.Segment(
-                        key = "${constellation.name}:${line.aStarId}-${line.bStarId}",
-                        start = worldPosition(altA, azA),
-                        end = worldPosition(altB, azB)
-                    )
+                MainScreen(
+                    state = state,
+                    onToggleConstellations = { vm.setShowConstellations(it) },
+                    onMaxMagnitudeChanged = { vm.setMaxMagnitude(it) },
+                    onMaxMagnitudeChangeFinished = { /* persisted in VM */ },
+                    onStarSelected = { id ->
+                        vm.setHighlightedStar(state.starsInView.firstOrNull { it.star.id == id })
+                    },
+                    onStarTapped = { star ->
+                        vm.setHighlightedStar(state.starsInView.firstOrNull { it.star.id == star.id })
+                    },
+                    onClearSelection = { vm.setHighlightedStar(null) },
+                    sceneViewRef = { sceneView = it },
+                    onRequestPermissions = { permissionLauncher.launch(permissions) },
+                    onOpenAppSettings = { openAppSettings() },
+                    onSetShowSettings = { show -> vm.setShowSettings(show) },
+                    onStarRenderModeChanged = { mode -> vm.setStarRenderMode(mode) },
+                    onShaderMaxStarsChanged = { v -> vm.setShaderMaxStars(v) },
+                    onFpsSample = { fps -> vm.onFpsSample(fps) },
+                    onConstellationDrawModeChanged = { mode -> vm.setConstellationDrawMode(mode) }
                 )
             }
         }
-        return segments
     }
 
-    private fun worldPosition(alt: Double, az: Double): Vector3 {
-        val radius = 10f
-        val altRad = Math.toRadians(alt)
-        val azRad = Math.toRadians(az)
-        val x = radius * Math.cos(altRad) * Math.sin(azRad)
-        val y = radius * Math.sin(altRad)
-        val z = -radius * Math.cos(altRad) * Math.cos(azRad)
-        return Vector3(x.toFloat(), y.toFloat(), z.toFloat())
+    override fun onResume() {
+        super.onResume()
+        val camera = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        vm.onPermissionsChanged(cameraGranted = camera, locationGranted = fine || coarse)
     }
 
-    private fun defaultLocation(): Location {
-        return Location("fallback").apply {
-            latitude = 51.4769
-            longitude = 0.0005
-            accuracy = 10000f
+    private fun openAppSettings() {
+        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+        startActivity(intent)
     }
 }
 
@@ -387,6 +164,9 @@ fun SelectedStarCard(
     modifier: Modifier = Modifier,
     onClear: () -> Unit
 ) {
+    val facts = remember(star.star.id, star.altitude, star.azimuth) {
+        AstronomyFacts.factsForVisibleStar(star)
+    }
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -428,6 +208,9 @@ fun SelectedStarCard(
                     color = Color(0xFFCFE0FF)
                 )
             }
+
+            Spacer(Modifier.height(10.dp))
+            EducationFactsSection(facts = facts)
         }
     }
 }

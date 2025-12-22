@@ -6,11 +6,12 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.view.Surface
+import android.view.WindowManager
 import kotlin.math.*
 
 class OrientationProvider(context: Context) : SensorEventListener {
+    private val appContext = context.applicationContext
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val display = context.display
     private val rotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
     private val gameRotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
     private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -168,7 +169,7 @@ class OrientationProvider(context: Context) : SensorEventListener {
 
     private fun remapForDisplayRotation(inR: FloatArray): FloatArray {
         val outR = FloatArray(9)
-        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val rotation = safeDisplayRotation()
         when (rotation) {
             Surface.ROTATION_0 ->
                 SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X, SensorManager.AXIS_Y, outR)
@@ -182,6 +183,16 @@ class OrientationProvider(context: Context) : SensorEventListener {
                 SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X, SensorManager.AXIS_Y, outR)
         }
         return outR
+    }
+
+    @Suppress("DEPRECATION")
+    private fun safeDisplayRotation(): Int {
+        // Using Context.display can throw when given a non-visual Context (e.g., Application),
+        // which happens now that orientation is owned by a ViewModel.
+        return runCatching {
+            val wm = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            wm.defaultDisplay.rotation
+        }.getOrDefault(Surface.ROTATION_0)
     }
 }
 

@@ -36,7 +36,9 @@ class ARStarDomeRenderer(
 
     // Shared billboard sprite renderables keyed by spectral class.
     private val renderablesBySpectralClass = mutableMapOf<Char, ModelRenderable>()
+    private val solidRenderablesBySpectralClass = mutableMapOf<Char, ModelRenderable>()
     private var spriteTexture: Texture? = null
+    private var renderMode: StarRenderMode = StarRenderMode.GLOW_TEXTURE
 
     // One update listener for billboarding + smooth fade.
     private val updateListener = Scene.OnUpdateListener { frameTime -> onFrame(frameTime) }
@@ -45,6 +47,7 @@ class ARStarDomeRenderer(
         // Pre-fill pool so we can handle large numbers smoothly.
         repeat(MAX_POOL) { pool.addLast(newState()) }
         buildStarRenderables()
+        buildSolidRenderables()
         sceneView.scene.addOnUpdateListener(updateListener)
     }
 
@@ -91,8 +94,10 @@ class ARStarDomeRenderer(
             }
     }
 
-    fun updateStars(stars: List<StarPositionCalculator.VisibleStar>) {
-        if (renderablesBySpectralClass.isEmpty()) return
+    fun updateStars(stars: List<StarPositionCalculator.VisibleStar>, mode: StarRenderMode = StarRenderMode.GLOW_TEXTURE) {
+        renderMode = mode
+        if (renderMode == StarRenderMode.SOLID && solidRenderablesBySpectralClass.isEmpty()) return
+        if (renderMode != StarRenderMode.SOLID && renderablesBySpectralClass.isEmpty()) return
         renderStars(stars)
     }
 
@@ -135,14 +140,51 @@ class ARStarDomeRenderer(
 
     private fun renderableFor(spectralType: String?): ModelRenderable {
         val cls = spectralType?.trim()?.firstOrNull()?.uppercaseChar() ?: '?'
-        return renderablesBySpectralClass[cls] ?: renderablesBySpectralClass['?']!!
+        return when (renderMode) {
+            StarRenderMode.AUTO -> renderablesBySpectralClass[cls] ?: renderablesBySpectralClass['?']!!
+            StarRenderMode.SOLID -> solidRenderablesBySpectralClass[cls] ?: solidRenderablesBySpectralClass['?']!!
+            StarRenderMode.CUSTOM_SHADER_GLOW -> renderablesBySpectralClass[cls] ?: renderablesBySpectralClass['?']!!
+            StarRenderMode.GLOW_TEXTURE -> renderablesBySpectralClass[cls] ?: renderablesBySpectralClass['?']!!
+        }
     }
 
     private fun sizeFromMagnitude(mag: Double): Double {
         // Clamp magnitude into a reasonable range and map to sprite scale.
         val m = mag.coerceIn(-1.5, 6.0)
         val t = (6.0 - m) / 7.5 // 0..1-ish (bright -> larger)
-        return 0.35 + 1.25 * t
+        return when (renderMode) {
+            StarRenderMode.AUTO -> 0.35 + 1.25 * t
+            StarRenderMode.SOLID -> 0.15 + 0.65 * t
+            StarRenderMode.CUSTOM_SHADER_GLOW -> 0.35 + 1.25 * t
+            StarRenderMode.GLOW_TEXTURE -> 0.35 + 1.25 * t
+        }
+    }
+
+    private fun buildSolidRenderables() {
+        val palette: Map<Char, Color> = mapOf(
+            'O' to Color(0.60f, 0.72f, 1.00f),
+            'B' to Color(0.68f, 0.78f, 1.00f),
+            'A' to Color(0.90f, 0.94f, 1.00f),
+            'F' to Color(1.00f, 0.98f, 0.90f),
+            'G' to Color(1.00f, 0.92f, 0.70f),
+            'K' to Color(1.00f, 0.75f, 0.45f),
+            'M' to Color(1.00f, 0.55f, 0.50f),
+            'P' to Color(0.55f, 1.00f, 0.75f),
+            '?' to Color(0.92f, 0.95f, 1.00f)
+        )
+
+        palette.forEach { (cls, color) ->
+            MaterialFactory.makeOpaqueWithColor(sceneView.context, color).thenAccept { material ->
+                val r = ShapeFactory.makeSphere(
+                    SOLID_RADIUS,
+                    Vector3.zero(),
+                    material
+                )
+                r.isShadowCaster = false
+                r.isShadowReceiver = false
+                solidRenderablesBySpectralClass[cls] = r
+            }
+        }
     }
 
     fun clearNodes() {
@@ -221,6 +263,7 @@ class ARStarDomeRenderer(
         private const val SPRITE_THICKNESS = 0.0015f
         private const val FADE_SPEED = 10f
         private const val MAX_POOL = 2600
+        private const val SOLID_RADIUS = 0.03f
     }
 }
 

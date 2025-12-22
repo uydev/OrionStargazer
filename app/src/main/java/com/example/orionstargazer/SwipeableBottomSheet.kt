@@ -11,7 +11,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -30,6 +29,8 @@ fun SwipeableBottomSheet(
     val scope = rememberCoroutineScope()
     val offsetPx = remember { Animatable(0f) }
     val density = LocalDensity.current
+    val sheetHeightPx = with(density) { sheetHeight.toPx() }
+    val halfPx = sheetHeightPx * 0.55f
 
     Box(
         Modifier.fillMaxSize(),
@@ -50,17 +51,16 @@ fun SwipeableBottomSheet(
                             scope.launch {
                                 offsetPx.snapTo(
                                     (offsetPx.value + dragAmount)
-                                        .coerceIn(0f, with(density) { sheetHeight.toPx() })
+                                        .coerceIn(0f, sheetHeightPx)
                                 )
                             }
                         },
                         onDragEnd = {
                             scope.launch {
-                                if (offsetPx.value > with(density) { sheetHeight.toPx() } / 2) {
-                                    offsetPx.animateTo(with(density) { sheetHeight.toPx() }, tween(200))
-                                } else {
-                                    offsetPx.animateTo(0f, tween(200))
-                                }
+                                // Snap to nearest of: expanded (0), mid, collapsed (sheetHeight).
+                                val v = offsetPx.value
+                                val target = listOf(0f, halfPx, sheetHeightPx).minBy { kotlin.math.abs(it - v) }
+                                offsetPx.animateTo(target, tween(220))
                             }
                         }
                     )
