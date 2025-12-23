@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,6 +91,7 @@ fun MainScreen(
     }
 
     var sceneView by remember { mutableStateOf<com.google.ar.sceneform.ArSceneView?>(null) }
+    var sheetExpanded by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -177,12 +179,20 @@ fun MainScreen(
             onStarChanged = onReticleStarChanged
         )
 
-        OverlayCompass(
-            azimuth = state.azimuth,
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 110.dp)
-        )
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            sheetExpanded = true
+                        }
+                    )
+                }
+        ) {
+            OverlayCompass(azimuth = state.azimuth)
+        }
 
         if (state.isSeeding && state.seedError == null) {
             LoadingPill(
@@ -210,6 +220,17 @@ fun MainScreen(
             },
             starListContent = {
                 Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = onOpenMainMenu) {
+                            Text("Main Menu")
+                        }
+                    }
                     Spacer(Modifier.height(2.dp))
                     if (!state.locationPermissionGranted) {
                         Row(
@@ -328,7 +349,9 @@ fun MainScreen(
                         onStarSelected = onStarSelected
                     )
                 }
-            }
+            },
+            isExpanded = sheetExpanded,
+            onExpandChanged = { sheetExpanded = it }
         )
 
         if (state.showHighlights) {

@@ -3,6 +3,7 @@ package com.example.orionstargazer
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,14 +24,22 @@ import kotlin.math.roundToInt
 @Composable
 fun SwipeableBottomSheet(
     orientationContent: @Composable () -> Unit,
-    starListContent: @Composable () -> Unit
+    starListContent: @Composable () -> Unit,
+    isExpanded: Boolean,
+    onExpandChanged: (Boolean) -> Unit
 ) {
     val sheetHeight = 340.dp
     val scope = rememberCoroutineScope()
-    val offsetPx = remember { Animatable(0f) }
     val density = LocalDensity.current
     val sheetHeightPx = with(density) { sheetHeight.toPx() }
-    val halfPx = sheetHeightPx * 0.55f
+    val peekHeightPx = with(density) { 120.dp.toPx() }
+    val collapsedOffset = (sheetHeightPx - peekHeightPx).coerceAtLeast(0f)
+    val offsetPx = remember { Animatable(if (isExpanded) 0f else collapsedOffset) }
+
+    LaunchedEffect(isExpanded) {
+        val target = if (isExpanded) 0f else collapsedOffset
+        offsetPx.animateTo(target, tween(260))
+    }
 
     Box(
         Modifier.fillMaxSize(),
@@ -44,24 +53,28 @@ fun SwipeableBottomSheet(
                 .offset { IntOffset(0, offsetPx.value.roundToInt()) }
                 .align(Alignment.BottomCenter)
                 .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-                .background(Color(0xCC050617)) // translucent deep navy
+                .background(Color(0xCC050617))
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        onExpandChanged(!isExpanded)
+                    }
+                }
                 .pointerInput(Unit) {
                     detectVerticalDragGestures(
                         onVerticalDrag = { _, dragAmount ->
                             scope.launch {
                                 offsetPx.snapTo(
-                                    (offsetPx.value + dragAmount)
-                                        .coerceIn(0f, sheetHeightPx)
+                                    (offsetPx.value + dragAmount).coerceIn(0f, sheetHeightPx)
                                 )
                             }
                         },
                         onDragEnd = {
+                            val nextExpanded = offsetPx.value <= collapsedOffset / 2f
                             scope.launch {
-                                // Snap to nearest of: expanded (0), mid, collapsed (sheetHeight).
-                                val v = offsetPx.value
-                                val target = listOf(0f, halfPx, sheetHeightPx).minBy { kotlin.math.abs(it - v) }
+                                val target = if (nextExpanded) 0f else collapsedOffset
                                 offsetPx.animateTo(target, tween(220))
                             }
+                            onExpandChanged(nextExpanded)
                         }
                     )
                 },
@@ -75,6 +88,26 @@ fun SwipeableBottomSheet(
                         .clip(RoundedCornerShape(4.dp))
                         .background(Color(0x55EAF2FF))
                         .align(Alignment.CenterHorizontally)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onVerticalDrag = { _, dragAmount ->
+                                    scope.launch {
+                                        offsetPx.snapTo(
+                                            (offsetPx.value + dragAmount)
+                                                .coerceIn(0f, sheetHeightPx)
+                                        )
+                                    }
+                                },
+                                onDragEnd = {
+                                    val nextExpanded = offsetPx.value <= collapsedOffset / 2f
+                                    scope.launch {
+                                        val target = if (nextExpanded) 0f else collapsedOffset
+                                        offsetPx.animateTo(target, tween(220))
+                                    }
+                                    onExpandChanged(nextExpanded)
+                                }
+                            )
+                        }
                 )
                 Text(
                     "Visible Stars",
@@ -88,20 +121,12 @@ fun SwipeableBottomSheet(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(80.dp)
                 .align(Alignment.BottomCenter)
                 .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { _, dragAmount ->
-                            if (offsetPx.value >= sheetHeightPx - 1f && dragAmount < 0f) {
-                                scope.launch {
-                                    offsetPx.snapTo(
-                                        (offsetPx.value + dragAmount).coerceIn(0f, sheetHeightPx)
-                                    )
-                                }
-                            }
-                        }
-                    )
+                    detectTapGestures {
+                        onExpandChanged(true)
+                    }
                 }
         )
     }
