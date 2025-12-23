@@ -357,6 +357,9 @@ fun MainScreen(
                             .padding(horizontal = 18.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        TextButton(onClick = { onSetShowHighlights(true) }) {
+                            Text("Highlights")
+                        }
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = onOpenMainMenu) {
                             Text("Main Menu")
