@@ -67,12 +67,19 @@ fun SettingsPage(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Star rendering",
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Star rendering",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFEAF2FF)
                     )
+                        Text(
+                            text = "Orion Stargazer — developed by Hephaestus Systems (Uner YILMAZ)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFCFE0FF)
+                        )
+                    }
                     Text(
                         text = "Pick the look you prefer. If your device struggles, use Solid.",
                         style = MaterialTheme.typography.bodySmall,

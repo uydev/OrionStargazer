@@ -85,5 +85,24 @@ fun SwipeableBottomSheet(
                 starListContent()
             }
         }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+                .align(Alignment.BottomCenter)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { _, dragAmount ->
+                            if (offsetPx.value >= sheetHeightPx - 1f && dragAmount < 0f) {
+                                scope.launch {
+                                    offsetPx.snapTo(
+                                        (offsetPx.value + dragAmount).coerceIn(0f, sheetHeightPx)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+        )
     }
 }
