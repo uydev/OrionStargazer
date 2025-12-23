@@ -33,6 +33,7 @@ class ConstellationRenderer(
     )
 
     private val segmentsByKey = mutableMapOf<String, SegmentAnim>()
+    private val nodePool = mutableListOf<Node>()
     private var lineRenderable: ModelRenderable? = null
 
     init {
@@ -73,7 +74,10 @@ class ConstellationRenderer(
         segments.forEachIndexed { index, seg ->
             val existing = segmentsByKey[seg.key]
             if (existing == null) {
-                val node = Node().apply { setParent(sceneView.scene) }
+                val node = nodePool.removeLastOrNull() ?: Node()
+                if (node.parent == null) {
+                    node.setParent(sceneView.scene)
+                }
                 node.renderable = r.makeCopy()
                 val delay = (index * 55L).coerceAtMost(350L)
                 segmentsByKey[seg.key] = SegmentAnim(
@@ -128,6 +132,8 @@ class ConstellationRenderer(
             if (anim.state == AnimState.FADING_OUT && t <= 0f) {
                 sceneView.scene.removeChild(anim.node)
                 anim.node.setParent(null)
+                anim.node.renderable = null
+                nodePool.add(anim.node)
                 iterator.remove()
                 continue
             }
@@ -146,6 +152,8 @@ class ConstellationRenderer(
             val node = anim.node
             sceneView.scene.removeChild(node)
             node.setParent(null)
+            node.renderable = null
+            nodePool.add(node)
         }
         segmentsByKey.clear()
     }
