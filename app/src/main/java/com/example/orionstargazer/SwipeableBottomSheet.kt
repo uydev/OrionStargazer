@@ -55,11 +55,6 @@ fun SwipeableBottomSheet(
                 .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
                 .background(Color(0xCC050617))
                 .pointerInput(Unit) {
-                    detectTapGestures {
-                        onExpandChanged(!isExpanded)
-                    }
-                }
-                .pointerInput(Unit) {
                     detectVerticalDragGestures(
                         onVerticalDrag = { _, dragAmount ->
                             scope.launch {
@@ -88,6 +83,9 @@ fun SwipeableBottomSheet(
                         .clip(RoundedCornerShape(4.dp))
                         .background(Color(0x55EAF2FF))
                         .align(Alignment.CenterHorizontally)
+                        .pointerInput(Unit) {
+                            detectTapGestures { onExpandChanged(!isExpanded) }
+                        }
                         .pointerInput(Unit) {
                             detectVerticalDragGestures(
                                 onVerticalDrag = { _, dragAmount ->

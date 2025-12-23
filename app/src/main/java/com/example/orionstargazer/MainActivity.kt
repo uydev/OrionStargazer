@@ -106,7 +106,10 @@ class MainActivity : ComponentActivity() {
                             val next = (state.maxMagnitude + delta).coerceIn(0.0, 8.0)
                             vm.setMaxMagnitude(next)
                         },
-                        onOpenMainMenu = { showMainScreen = false }
+                        onOpenMainMenu = { showMainScreen = false },
+                        onShowXyOverlayChanged = { enabled -> vm.setShowXyOverlay(enabled) },
+                        onStartCalibrationChallenge = { vm.setShowCalibrationChallenge(true) },
+                        onDismissCalibrationChallenge = { vm.setShowCalibrationChallenge(false) }
                     )
                 }
             }

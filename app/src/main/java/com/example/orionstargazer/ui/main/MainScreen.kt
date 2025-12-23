@@ -25,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -53,8 +54,14 @@ import com.example.orionstargazer.ui.ReticleOverlay
 import com.example.orionstargazer.ui.SelectedStarCard
 import com.example.orionstargazer.ui.SkyStatusBar
 import com.example.orionstargazer.ui.OrientationDisplay
+import com.example.orionstargazer.ui.XYTiltOverlay
+import com.example.orionstargazer.ui.CalibrationChallengeDialog
+import com.example.orionstargazer.ui.ApproxReticleStarSelector
+import com.example.orionstargazer.ui.CalibrationGuidanceOverlay
 import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
 
 @Composable
 fun MainScreen(
@@ -77,36 +84,86 @@ fun MainScreen(
     onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit = {},
     onPinchMagnitudeChange: (Float) -> Unit = {},
     onOpenMainMenu: () -> Unit,
+    onShowXyOverlayChanged: (Boolean) -> Unit,
+    onStartCalibrationChallenge: () -> Unit,
+    onDismissCalibrationChallenge: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.showSettings) {
         SettingsPage(
             state = state,
-            onBack = { onSetShowSettings(false) },
+            onBack = {
+                onSetShowSettings(false)
+                onOpenMainMenu()
+            },
             onStarRenderModeChanged = onStarRenderModeChanged,
             onShaderMaxStarsChanged = onShaderMaxStarsChanged,
-            onConstellationDrawModeChanged = onConstellationDrawModeChanged
+            onConstellationDrawModeChanged = onConstellationDrawModeChanged,
+            onShowXyOverlayChanged = onShowXyOverlayChanged,
+            onStartCalibrationChallenge = {
+                onSetShowSettings(false)
+                onStartCalibrationChallenge()
+            }
         )
         return
     }
 
     var sceneView by remember { mutableStateOf<com.google.ar.sceneform.ArSceneView?>(null) }
     var sheetExpanded by remember { mutableStateOf(false) }
+    var showCalibrationDialog by rememberSaveable { mutableStateOf(false) }
+    var showCalibrationSuccess by rememberSaveable { mutableStateOf(false) }
+
+    val isPolarisLocked =
+        state.highlightedStar?.star?.name?.contains("Polaris", ignoreCase = true) == true
+
+    val showArSurface = state.cameraPermissionGranted && !state.showCalibrationChallenge
+
+    LaunchedEffect(state.showCalibrationChallenge) {
+        if (state.showCalibrationChallenge) {
+            showCalibrationDialog = true
+        } else {
+            showCalibrationDialog = false
+        }
+    }
+
+    LaunchedEffect(showArSurface) {
+        if (!showArSurface) sceneView = null
+    }
+
+    LaunchedEffect(state.showCalibrationChallenge, isPolarisLocked) {
+        if (!state.showCalibrationChallenge) return@LaunchedEffect
+        if (!isPolarisLocked) return@LaunchedEffect
+        delay(650)
+        val stillLocked = state.highlightedStar?.star?.name?.contains("Polaris", ignoreCase = true) == true
+        if (stillLocked) {
+            showCalibrationSuccess = true
+            onDismissCalibrationChallenge()
+            delay(1400)
+            showCalibrationSuccess = false
+        }
+    }
+
+    val endCalibration: () -> Unit = {
+        onDismissCalibrationChallenge()
+        onSetShowSettings(true)
+    }
 
     Box(
         modifier = modifier.fillMaxSize()
     ) {
         FrameRateTracker(onFps = onFpsSample)
         NightSkyBackground(modifier = Modifier.fillMaxSize())
-        SkyStatusBar(
-            cameraOk = state.cameraPermissionGranted,
-            locationOk = state.locationPermissionGranted,
-            magnitude = state.maxMagnitude,
-            fps = state.measuredFps,
-            constellationMode = state.constellationDrawMode.name.take(6),
-            caps = state.shaderMaxStars.toString(),
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
+        if (!state.showCalibrationChallenge && !showCalibrationSuccess) {
+            SkyStatusBar(
+                cameraOk = state.cameraPermissionGranted,
+                locationOk = state.locationPermissionGranted,
+                magnitude = state.maxMagnitude,
+                fps = state.measuredFps,
+                constellationMode = state.constellationDrawMode.name.take(6),
+                caps = state.shaderMaxStars.toString(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
 
         IconButton(
             onClick = onOpenMainMenu,
@@ -125,7 +182,7 @@ fun MainScreen(
             )
         }
 
-        if (state.cameraPermissionGranted) {
+        if (showArSurface) {
             Box(Modifier.fillMaxSize()) {
                 ARCoreView(
                     stars = state.starsInView,
@@ -158,7 +215,7 @@ fun MainScreen(
                     )
                 }
             }
-        } else {
+        } else if (!state.showCalibrationChallenge) {
             PermissionCallout(
                 title = "Permissions needed",
                 message = "Enable Camera (and Location for accurate sky alignment).",
@@ -170,14 +227,85 @@ fun MainScreen(
                     .align(Alignment.Center)
                     .padding(18.dp)
             )
+        } else {
+            // Calibration mode: keep the starry background visible (no AR surface).
+            ReticleOverlay()
         }
 
-        // Reticle selection (UI-layer, depends on ArSceneView).
-        ReticleStarSelector(
-            sceneView = sceneView,
-            stars = state.starsInView,
-            onStarChanged = onReticleStarChanged
-        )
+        if (showArSurface) {
+            // Reticle selection (UI-layer, depends on ArSceneView).
+            ReticleStarSelector(
+                sceneView = sceneView,
+                stars = state.starsInView,
+                onStarChanged = onReticleStarChanged
+            )
+        } else if (state.showCalibrationChallenge) {
+            // Fallback selection so calibration works without ARCoreView.
+            ApproxReticleStarSelector(
+                deviceAzimuth = state.azimuth,
+                deviceAltitude = state.altitude,
+                stars = state.starsInView,
+                onStarChanged = onReticleStarChanged
+            )
+        }
+
+        // Must be drawn AFTER ARCoreView (AndroidView/SurfaceView) or it can get covered once the
+        // camera feed/GL surface initializes.
+        if (state.showXyOverlay && !state.showCalibrationChallenge && !showCalibrationSuccess) {
+            XYTiltOverlay(
+                azimuthDeg = state.azimuth,
+                altitudeDeg = state.altitude,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (state.showCalibrationChallenge) {
+            CalibrationGuidanceOverlay(
+                deviceAzimuth = state.azimuth,
+                deviceAltitude = state.altitude,
+                targetAzimuth = state.polarisTargetAzimuth,
+                targetAltitude = state.polarisTargetAltitude,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Draw this AFTER ARCoreView so it can't be covered by the AR surface.
+        if (state.showCalibrationChallenge || showCalibrationSuccess) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 64.dp)
+                    .background(Color(0xAA0C1324), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                val title = if (showCalibrationSuccess) "Calibration: Success" else "Calibration: Find Polaris"
+                val subtitle = if (showCalibrationSuccess) {
+                    "Polaris centered in reticle"
+                } else {
+                    val tAz = state.polarisTargetAzimuth?.let { "%.0f".format(it) } ?: "—"
+                    val tAlt = state.polarisTargetAltitude?.let { "%.0f".format(it) } ?: "—"
+                    val curAz = "%.0f".format(state.azimuth)
+                    val curAlt = "%.0f".format(state.altitude)
+                    "Target Az $tAz° • Alt $tAlt°   |   Now Az $curAz° • Alt $curAlt°"
+                }
+                Text(title, color = Color(0xFFEAF2FF), style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    subtitle,
+                    color = if (showCalibrationSuccess) Color(0xFF7CFFB2) else Color(0xFFCFE0FF),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (state.showCalibrationChallenge) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { showCalibrationDialog = true }) { Text("Details") }
+                        TextButton(onClick = { onSetShowSettings(true) }) { Text("Settings") }
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = endCalibration) { Text("End") }
+                    }
+                }
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -191,7 +319,9 @@ fun MainScreen(
                     )
                 }
         ) {
-            OverlayCompass(azimuth = state.azimuth)
+            if (!state.showCalibrationChallenge && !showCalibrationSuccess) {
+                OverlayCompass(azimuth = state.azimuth)
+            }
         }
 
         if (state.isSeeding && state.seedError == null) {
@@ -210,16 +340,17 @@ fun MainScreen(
             )
         }
 
-        SwipeableBottomSheet(
-            orientationContent = {
-                OrientationDisplay(
-                    azimuth = state.azimuth,
-                    altitude = state.altitude,
-                    modifier = Modifier.fillMaxSize()
-                )
-            },
-            starListContent = {
-                Column {
+        if (!state.showCalibrationChallenge && !showCalibrationSuccess) {
+            SwipeableBottomSheet(
+                orientationContent = {
+                    OrientationDisplay(
+                        azimuth = state.azimuth,
+                        altitude = state.altitude,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                starListContent = {
+                    Column {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -348,16 +479,33 @@ fun MainScreen(
                         selectedStarId = state.highlightedStar?.star?.id,
                         onStarSelected = onStarSelected
                     )
-                }
-            },
-            isExpanded = sheetExpanded,
-            onExpandChanged = { sheetExpanded = it }
-        )
+                    }
+                },
+                isExpanded = sheetExpanded,
+                onExpandChanged = { sheetExpanded = it }
+            )
+        }
 
         if (state.showHighlights) {
             Dialog(onDismissRequest = { onSetShowHighlights(false) }) {
                 HighlightsScreen(
                     highlights = if (state.highlights.isNotEmpty()) state.highlights else listOf("Scanning night sky…"),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        if (state.showCalibrationChallenge && showCalibrationDialog) {
+            Dialog(onDismissRequest = { showCalibrationDialog = false }) {
+                CalibrationChallengeDialog(
+                    azimuth = state.azimuth,
+                    altitude = state.altitude,
+                    starsInView = state.starsInView,
+                    highlightedStar = state.highlightedStar,
+                    onMinimize = { showCalibrationDialog = false },
+                    onEnd = endCalibration,
+                    targetAzimuth = state.polarisTargetAzimuth,
+                    targetAltitude = state.polarisTargetAltitude,
                     modifier = Modifier.fillMaxSize()
                 )
             }

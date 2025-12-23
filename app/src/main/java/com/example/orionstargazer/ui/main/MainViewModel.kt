@@ -37,6 +37,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var lastConstellationUpdateMs: Long = 0L
     private var started: Boolean = false
     private var candidateIndex: SkyPipeline.EquatorialIndex = pipeline.buildEquatorialIndex(emptyList())
+    private var cachedPolaris: com.example.orionstargazer.data.entities.StarEntity? = null
 
     fun onPermissionsChanged(cameraGranted: Boolean, locationGranted: Boolean) {
         state = state.copy(
@@ -95,6 +96,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         state = state.copy(showHighlights = show)
     }
 
+    fun setShowXyOverlay(show: Boolean) {
+        state = state.copy(showXyOverlay = show)
+        viewModelScope.launch {
+            UserSettings.setShowXyOverlay(getApplication(), show)
+        }
+    }
+
+    fun setShowCalibrationChallenge(show: Boolean) {
+        state = state.copy(showCalibrationChallenge = show)
+    }
+
     fun start() {
         if (started) return
         started = true
@@ -140,6 +152,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 state = state.copy(constellationDrawMode = it)
             }
         }
+        viewModelScope.launch {
+            UserSettings.showXyOverlayFlow(getApplication()).collectLatest { enabled ->
+                state = state.copy(showXyOverlay = enabled)
+            }
+        }
 
         // Candidate refresh loop
         viewModelScope.launch {
@@ -175,6 +192,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val loc = locationProvider.location
                 val location = loc ?: defaultLocation()
                 val calendar = Calendar.getInstance()
+
+                // Polaris target (always compute so calibration can show exact numbers).
+                val polaris = cachedPolaris
+                    ?: state.candidateStars.firstOrNull { it.name.contains("Polaris", ignoreCase = true) }
+                    ?: cachedAllStarsById.values.firstOrNull { it.name.contains("Polaris", ignoreCase = true) }
+                if (cachedPolaris == null && polaris != null) cachedPolaris = polaris
+                val polarisAltAz = if (polaris != null) {
+                    StarPositionCalculator.computeAltAz(calendar, location, polaris)
+                } else null
 
                 // Stars: fast cone-search using equatorial unit-vector cache.
                 val visibleStars = pipeline.computeVisibleStarsFast(
@@ -320,7 +346,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     usingFallbackLocation = !state.locationPermissionGranted || loc == null,
                     effectiveStarRenderMode = effectiveMode
                     ,
-                    highlights = highlightTexts
+                    highlights = highlightTexts,
+                    polarisTargetAltitude = polarisAltAz?.first?.toFloat(),
+                    polarisTargetAzimuth = polarisAltAz?.second?.toFloat()
                 )
                 delay(100)
             }

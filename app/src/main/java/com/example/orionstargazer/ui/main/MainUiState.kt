@@ -33,6 +33,11 @@ data class MainUiState(
     val starsInView: List<StarPositionCalculator.VisibleStar> = emptyList(),
     val constellationPrimarySegments: List<ConstellationRenderer.Segment> = emptyList(),
     val constellationSecondarySegments: List<ConstellationRenderer.Segment> = emptyList(),
-    val highlightedStar: StarPositionCalculator.VisibleStar? = null
+    val highlightedStar: StarPositionCalculator.VisibleStar? = null,
+    val showXyOverlay: Boolean = false,
+    val showCalibrationChallenge: Boolean = false,
+    val polarisTargetAzimuth: Float? = null,
+    val polarisTargetAltitude: Float? = null
 )
+
 

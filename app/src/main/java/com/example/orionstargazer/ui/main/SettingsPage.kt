@@ -8,29 +8,38 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Button
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+ import kotlin.math.abs
 import com.example.orionstargazer.ar.ConstellationDrawMode
 import com.example.orionstargazer.ar.StarRenderMode
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,7 +48,9 @@ fun SettingsPage(
     onBack: () -> Unit,
     onStarRenderModeChanged: (StarRenderMode) -> Unit,
     onShaderMaxStarsChanged: (Int) -> Unit,
-    onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit
+    onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit,
+    onShowXyOverlayChanged: (Boolean) -> Unit,
+    onStartCalibrationChallenge: () -> Unit
 ) {
     val shaderSupported = state.starRenderCapabilities?.supportsCustomShaderGlow == true
     val shaderReason = state.starRenderCapabilities?.reasonIfUnsupported ?: "Not supported on this device"
@@ -77,11 +88,6 @@ fun SettingsPage(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFEAF2FF)
                     )
-                        Text(
-                            text = "Orion Stargazer — developed by Hephaestus Systems (Uner YILMAZ)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFCFE0FF)
-                        )
                     }
                     Text(
                         text = "Pick the look you prefer. If your device struggles, use Solid.",
@@ -199,6 +205,67 @@ fun SettingsPage(
                         enabled = true,
                         onSelect = { onConstellationDrawModeChanged(ConstellationDrawMode.HYBRID) }
                     )
+                }
+            }
+
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xCC0D1230)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "X/Y tilt overlay",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFEAF2FF),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = state.showXyOverlay,
+                            onCheckedChange = onShowXyOverlayChanged
+                        )
+                    }
+                    Text(
+                        text = "Shows subtle X (tilt) and Y (heading) sliders on-screen to help verify sensor response.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFCFE0FF)
+                    )
+                    Text(
+                        text = "Wiring/persistence will be added next.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFA9C6FF)
+                    )
+                }
+            }
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xCC0D1230)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Calibration challenge",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEAF2FF)
+                    )
+                    Text(
+                        text = "Prove the sensors + reticle are working by centering Polaris (North Star) in the reticle.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFCFE0FF)
+                    )
+                    Button(
+                        onClick = onStartCalibrationChallenge
+                    ) {
+                        Text("Start challenge")
+                    }
                 }
             }
         }

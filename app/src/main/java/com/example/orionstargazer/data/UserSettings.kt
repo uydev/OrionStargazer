@@ -18,12 +18,14 @@ object UserSettings {
     private val KEY_STAR_RENDER_MODE = stringPreferencesKey("star_render_mode")
     private val KEY_SHADER_MAX_STARS = intPreferencesKey("shader_max_stars")
     private val KEY_CONSTELLATION_DRAW_MODE = stringPreferencesKey("constellation_draw_mode")
+    private val KEY_SHOW_XY_OVERLAY = intPreferencesKey("show_xy_overlay")
 
     /** Default roughly matches naked-eye suburban-ish sky. */
     const val DEFAULT_MAX_MAGNITUDE: Double = 6.0
     val DEFAULT_STAR_RENDER_MODE: StarRenderMode = StarRenderMode.GLOW_TEXTURE
     const val DEFAULT_SHADER_MAX_STARS: Int = 1200
     val DEFAULT_CONSTELLATION_DRAW_MODE: ConstellationDrawMode = ConstellationDrawMode.DETECTED
+    const val DEFAULT_SHOW_XY_OVERLAY: Boolean = false
 
     fun maxMagnitudeFlow(context: Context): Flow<Double> =
         context.dataStore.data.map { prefs ->
@@ -74,6 +76,18 @@ object UserSettings {
             prefs[KEY_CONSTELLATION_DRAW_MODE] = mode.name
         }
     }
+
+    fun showXyOverlayFlow(context: Context): Flow<Boolean> =
+        context.dataStore.data.map { prefs ->
+            (prefs[KEY_SHOW_XY_OVERLAY] ?: if (DEFAULT_SHOW_XY_OVERLAY) 1 else 0) == 1
+        }
+
+    suspend fun setShowXyOverlay(context: Context, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SHOW_XY_OVERLAY] = if (enabled) 1 else 0
+        }
+    }
 }
+
 
 
