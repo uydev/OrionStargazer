@@ -16,7 +16,8 @@ import androidx.compose.ui.tooling.preview.Preview
 fun ReticleOverlay() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val centerX = size.width / 2
-        val centerY = size.height / 2
+        val reticleLift = size.height * 0.08f
+        val centerY = (size.height / 2) - reticleLift
         val radius = size.minDimension * 0.05f
         val strokeWidth = size.minDimension * 0.005f
 

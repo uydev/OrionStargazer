@@ -192,7 +192,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val visiblePlanets = pipeline.computeVisibleStars(calendar, location, az, alt, planetEntities)
 
                 val altAzCache = pipeline.buildAltAzCache(calendar, location, cachedAllStarsById.values)
-                val visible = (visibleStars + visiblePlanets).sortedBy { it.star.magnitude }
+                val visible = (visibleStars + visiblePlanets).sortedWith(
+                    compareBy(
+                        { StarPositionCalculator.viewDistanceDegrees(it.azimuth, it.altitude, az, alt) },
+                        { it.star.magnitude }
+                    )
+                )
 
                 val effectiveMode = resolveAutoMode(
                     selected = state.starRenderMode,

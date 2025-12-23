@@ -11,9 +11,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.window.Dialog
+import com.example.orionstargazer.ui.InstructionPanel
 import com.example.orionstargazer.ui.theme.OrionStargazerTheme
 import androidx.activity.viewModels
+import com.example.orionstargazer.ui.main.MainMenuScreen
 import com.example.orionstargazer.ui.main.MainScreen
 import com.example.orionstargazer.ui.main.MainViewModel
 
@@ -57,34 +62,53 @@ class MainActivity : ComponentActivity() {
         setContent {
             OrionStargazerTheme(darkTheme = true, dynamicColor = false) {
                 val state = vm.state
-                MainScreen(
-                    state = state,
-                    onToggleConstellations = { vm.setShowConstellations(it) },
-                    onMaxMagnitudeChanged = { vm.setMaxMagnitude(it) },
-                    onMaxMagnitudeChangeFinished = { /* persisted in VM */ },
-                    onStarSelected = { id ->
-                        vm.setHighlightedStar(state.starsInView.firstOrNull { it.star.id == id })
-                    },
-                    onStarTapped = { star ->
-                        vm.setHighlightedStar(state.starsInView.firstOrNull { it.star.id == star.id })
-                    },
-                    onClearSelection = { vm.setHighlightedStar(null) },
-                    onReticleStarChanged = { vm.setHighlightedStar(it) },
-                    onRequestPermissions = { permissionLauncher.launch(permissions) },
-                    onRequestLocationOnly = { permissionLauncher.launch(locationOnlyPermissions) },
-                    onOpenAppSettings = { openAppSettings() },
-                    onSetShowSettings = { show -> vm.setShowSettings(show) },
-                    onSetShowHighlights = { show -> vm.setShowHighlights(show) },
-                    onStarRenderModeChanged = { mode -> vm.setStarRenderMode(mode) },
-                    onShaderMaxStarsChanged = { v -> vm.setShaderMaxStars(v) },
-                    onFpsSample = { fps -> vm.onFpsSample(fps) },
-                    onConstellationDrawModeChanged = { mode -> vm.setConstellationDrawMode(mode) }
-                    ,
-                    onPinchMagnitudeChange = { delta ->
-                        val next = (state.maxMagnitude + delta).coerceIn(0.0, 8.0)
-                        vm.setMaxMagnitude(next)
+                var showMainScreen by rememberSaveable { mutableStateOf(false) }
+                var showInstructions by remember { mutableStateOf(false) }
+
+                if (!showMainScreen) {
+                    MainMenuScreen(
+                        onEnterStargazing = { showMainScreen = true },
+                        onShowInstructions = { showInstructions = true },
+                        onShowSettings = {
+                            showMainScreen = true
+                            vm.setShowSettings(true)
+                        }
+                    )
+                    if (showInstructions) {
+                        Dialog(onDismissRequest = { showInstructions = false }) {
+                            InstructionPanel(onClose = { showInstructions = false })
+                        }
                     }
-                )
+                } else {
+                    MainScreen(
+                        state = state,
+                        onToggleConstellations = { vm.setShowConstellations(it) },
+                        onMaxMagnitudeChanged = { vm.setMaxMagnitude(it) },
+                        onMaxMagnitudeChangeFinished = { /* persisted in VM */ },
+                        onStarSelected = { id ->
+                            vm.setHighlightedStar(state.starsInView.firstOrNull { it.star.id == id })
+                        },
+                        onStarTapped = { star ->
+                            vm.setHighlightedStar(state.starsInView.firstOrNull { it.star.id == star.id })
+                        },
+                        onClearSelection = { vm.setHighlightedStar(null) },
+                        onReticleStarChanged = { vm.setHighlightedStar(it) },
+                        onRequestPermissions = { permissionLauncher.launch(permissions) },
+                        onRequestLocationOnly = { permissionLauncher.launch(locationOnlyPermissions) },
+                        onOpenAppSettings = { openAppSettings() },
+                        onSetShowSettings = { show -> vm.setShowSettings(show) },
+                        onSetShowHighlights = { show -> vm.setShowHighlights(show) },
+                        onStarRenderModeChanged = { mode -> vm.setStarRenderMode(mode) },
+                        onShaderMaxStarsChanged = { v -> vm.setShaderMaxStars(v) },
+                        onFpsSample = { fps -> vm.onFpsSample(fps) },
+                        onConstellationDrawModeChanged = { mode -> vm.setConstellationDrawMode(mode) },
+                        onPinchMagnitudeChange = { delta ->
+                            val next = (state.maxMagnitude + delta).coerceIn(0.0, 8.0)
+                            vm.setMaxMagnitude(next)
+                        },
+                        onOpenMainMenu = { showMainScreen = false }
+                    )
+                }
             }
         }
     }
@@ -105,3 +129,4 @@ class MainActivity : ComponentActivity() {
         startActivity(intent)
     }
 }
+

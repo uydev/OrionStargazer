@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,18 +13,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +40,7 @@ import com.example.orionstargazer.SwipeableBottomSheet
 import com.example.orionstargazer.ar.ARCoreView
 import com.example.orionstargazer.ar.ConstellationDrawMode
 import com.example.orionstargazer.ar.StarRenderMode
+import com.example.orionstargazer.ui.DetectedStarLabel
 import com.example.orionstargazer.ui.FrameRateTracker
 import com.example.orionstargazer.ui.HighlightsScreen
 import com.example.orionstargazer.ui.LoadingPill
@@ -68,6 +75,7 @@ fun MainScreen(
     onFpsSample: (Float) -> Unit = {},
     onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit = {},
     onPinchMagnitudeChange: (Float) -> Unit = {},
+    onOpenMainMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.showSettings) {
@@ -84,16 +92,7 @@ fun MainScreen(
     var sceneView by remember { mutableStateOf<com.google.ar.sceneform.ArSceneView?>(null) }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, _, zoom, _ ->
-                    val delta = (zoom - 1f) * 3f
-                    if (kotlin.math.abs(delta) > 0.01f) {
-                        onPinchMagnitudeChange(delta)
-                    }
-                }
-            }
+        modifier = modifier.fillMaxSize()
     ) {
         FrameRateTracker(onFps = onFpsSample)
         NightSkyBackground(modifier = Modifier.fillMaxSize())
@@ -107,6 +106,23 @@ fun MainScreen(
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
+        IconButton(
+            onClick = onOpenMainMenu,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+                .background(
+                    color = Color(0x220D1A33),
+                    shape = RoundedCornerShape(12.dp)
+                )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Menu,
+                contentDescription = "Open menu",
+                tint = Color(0xFFEAF2FF)
+            )
+        }
+
         if (state.cameraPermissionGranted) {
             Box(Modifier.fillMaxSize()) {
                 ARCoreView(
@@ -118,10 +134,27 @@ fun MainScreen(
                     customShaderGlowEnabled = state.starRenderCapabilities?.supportsCustomShaderGlow == true,
                     shaderMaxStars = state.shaderMaxStars,
                     onStarTapped = onStarTapped,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, _, zoom, _ ->
+                                val delta = (zoom - 1f) * 3f
+                                if (kotlin.math.abs(delta) > 0.01f) {
+                                    onPinchMagnitudeChange(delta)
+                                }
+                            }
+                        },
                     sceneViewRef = { sceneView = it }
                 )
                 ReticleOverlay()
+                state.highlightedStar?.let { star ->
+                    DetectedStarLabel(
+                        star = star,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = 64.dp)
+                    )
+                }
             }
         } else {
             PermissionCallout(
@@ -177,25 +210,6 @@ fun MainScreen(
             },
             starListContent = {
                 Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 18.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Controls",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFFEAF2FF),
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = { onSetShowSettings(true) }) {
-                            Text("Settings")
-                        }
-                        TextButton(onClick = { onSetShowHighlights(true) }) {
-                            Text("Highlights")
-                        }
-                    }
                     Spacer(Modifier.height(2.dp))
                     if (!state.locationPermissionGranted) {
                         Row(
@@ -327,4 +341,5 @@ fun MainScreen(
         }
     }
 }
+
 

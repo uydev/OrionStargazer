@@ -56,16 +56,22 @@ fun PermissionCallout(
             if (primaryActionText != null && onPrimaryAction != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
-                        onClick = onPrimaryAction,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A2B6B))
-                    ) {
+                Button(
+                    onClick = onPrimaryAction,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1A2B6B),
+                        contentColor = Color(0xFFEAF2FF)
+                    )
+                ) {
                         Text(primaryActionText)
                     }
                     if (secondaryActionText != null && onSecondaryAction != null) {
                         Button(
-                            onClick = onSecondaryAction,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0E1433))
+                        onClick = onSecondaryAction,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0E1433),
+                            contentColor = Color(0xFFEAF2FF)
+                        )
                         ) {
                             Text(secondaryActionText)
                         }
@@ -100,4 +106,5 @@ fun LoadingPill(
         }
     }
 }
+
 
