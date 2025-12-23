@@ -16,10 +16,15 @@ OrionStargazer is an Android-first augmented reality stargazing experience built
    - Selected star card surfaces curated facts (magnitude, distance, RA/Dec, spectral type, constellation notes).
    - Highlights dialog summarizes top visible stars and their key stats.
 4. **Settings + UX**:
-   - Bottom sheet with controls for magnitude cutoff, constellation toggle, and settings access.
+   - Main Menu launcher (Stargazing Mode / Instructions / Settings).
+   - Visible Stars bottom sheet with magnitude cutoff, constellation toggle, and quick actions (Main Menu + Highlights).
    - Pinch-to-adjust sensitivity quickly changes the magnitude limit on-screen.
    - Overlay compass + SkyStatusBar keep orientation, FPS, shader caps, and permissions visible at all times.
-5. **Permissions + resilience**:
+   - Optional X/Y overlay toggle (shows subtle on-screen sliders for pitch/altitude + heading/azimuth to verify sensor response).
+5. **Calibration challenge (Polaris)**:
+   - A guided “sanity check” you can start from Settings to verify sensors + reticle behavior.
+   - Shows live target Az/Alt for Polaris with on-screen guidance arrows; challenge completes when Polaris is centered.
+6. **Permissions + resilience**:
    - Separate camera/location flows with an optional location-only prompt.
    - ARCore availability is probed, and navigation to app settings is provided when needed.
 
@@ -53,4 +58,5 @@ OrionStargazer is an Android-first augmented reality stargazing experience built
 - Tap a constellation highlight to lock and read curated facts.
 - Use Settings to toggle shader modes or pin “Hybrid” detection for both the highlighted constellation and nearby context.
 - When the bottom sheet is fully collapsed, drag the subtle handle area at the screen bottom to bring it back up.
-# OrionStargazer
+- Calibration challenge: open Settings → “Start challenge” and follow the target Az/Alt + arrows until Polaris is centered; “End” returns to Settings.
+
