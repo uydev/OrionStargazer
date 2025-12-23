@@ -61,6 +61,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.10.3")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
