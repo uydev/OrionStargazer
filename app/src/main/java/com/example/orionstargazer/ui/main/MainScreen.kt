@@ -251,7 +251,7 @@ fun MainScreen(
 
         // Must be drawn AFTER ARCoreView (AndroidView/SurfaceView) or it can get covered once the
         // camera feed/GL surface initializes.
-        if (state.showXyOverlay && !state.showCalibrationChallenge && !showCalibrationSuccess) {
+        if (state.showXyOverlay && !showCalibrationSuccess) {
             XYTiltOverlay(
                 azimuthDeg = state.azimuth,
                 altitudeDeg = state.altitude,
