@@ -34,10 +34,11 @@ fun SwipeableBottomSheet(
     val sheetHeightPx = with(density) { sheetHeight.toPx() }
     val peekHeightPx = with(density) { 120.dp.toPx() }
     val collapsedOffset = (sheetHeightPx - peekHeightPx).coerceAtLeast(0f)
+    val liftAmountPx = with(density) { 36.dp.toPx() }
     val offsetPx = remember { Animatable(if (isExpanded) 0f else collapsedOffset) }
 
     LaunchedEffect(isExpanded) {
-        val target = if (isExpanded) 0f else collapsedOffset
+        val target = if (isExpanded) -liftAmountPx else collapsedOffset
         offsetPx.animateTo(target, tween(260))
     }
 
@@ -46,7 +47,7 @@ fun SwipeableBottomSheet(
         contentAlignment = Alignment.TopCenter
     ) {
         orientationContent()
-        val liftAmount = 36.dp
+        val liftAmount = with(density) { 36.dp }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -61,7 +62,7 @@ fun SwipeableBottomSheet(
                         onVerticalDrag = { _, dragAmount ->
                             scope.launch {
                                 offsetPx.snapTo(
-                                    (offsetPx.value + dragAmount).coerceIn(0f, sheetHeightPx)
+                                    (offsetPx.value + dragAmount).coerceIn(-liftAmountPx, sheetHeightPx)
                                 )
                             }
                         },
@@ -101,7 +102,7 @@ fun SwipeableBottomSheet(
                                 onDragEnd = {
                                     val nextExpanded = offsetPx.value <= collapsedOffset / 2f
                                     scope.launch {
-                                        val target = if (nextExpanded) 0f else collapsedOffset
+                                        val target = if (nextExpanded) -liftAmountPx else collapsedOffset
                                         offsetPx.animateTo(target, tween(220))
                                     }
                                     onExpandChanged(nextExpanded)
