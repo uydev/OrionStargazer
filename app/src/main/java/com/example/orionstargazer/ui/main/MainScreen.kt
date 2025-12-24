@@ -116,7 +116,7 @@ fun MainScreen(
     val isPolarisLocked =
         state.highlightedStar?.star?.name?.contains("Polaris", ignoreCase = true) == true
 
-    val showArSurface = state.cameraPermissionGranted && !state.showCalibrationChallenge
+    val showArSurface = state.cameraPermissionGranted && !state.showCalibrationChallenge && !showCalibrationSuccess
 
     LaunchedEffect(state.showCalibrationChallenge) {
         if (state.showCalibrationChallenge) {
@@ -216,20 +216,6 @@ fun MainScreen(
                 }
             }
         } else {
-            if (!state.cameraPermissionGranted || !state.locationPermissionGranted) {
-                PermissionCallout(
-                    title = "Permissions needed",
-                    message = "Enable Camera (and Location for accurate sky alignment).",
-                    primaryActionText = "Grant",
-                    onPrimaryAction = onRequestPermissions,
-                    secondaryActionText = "Settings",
-                    onSecondaryAction = onOpenAppSettings,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(18.dp)
-                )
-            }
-
             if (state.showCalibrationChallenge) {
                 // Calibration mode: keep the starry background visible (no AR surface).
                 ReticleOverlay()
@@ -490,6 +476,20 @@ fun MainScreen(
                 },
                 isExpanded = sheetExpanded,
                 onExpandChanged = { sheetExpanded = it }
+            )
+        }
+
+        if (!state.cameraPermissionGranted || !state.locationPermissionGranted) {
+            PermissionCallout(
+                title = "Permissions needed",
+                message = "Enable Camera (and Location for accurate sky alignment).",
+                primaryActionText = "Grant",
+                onPrimaryAction = onRequestPermissions,
+                secondaryActionText = "Settings",
+                onSecondaryAction = onOpenAppSettings,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(18.dp)
             )
         }
 
