@@ -131,6 +131,12 @@ fun MainScreen(
         if (!showArSurface) sceneView = null
     }
 
+    LaunchedEffect(state.showCalibrationChallenge) {
+        if (state.showCalibrationChallenge) {
+            showCalibrationSuccess = false
+        }
+    }
+
     LaunchedEffect(state.showCalibrationChallenge, isPolarisLocked) {
         if (!state.showCalibrationChallenge) return@LaunchedEffect
         if (!isPolarisLocked) return@LaunchedEffect
