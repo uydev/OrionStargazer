@@ -300,11 +300,6 @@ fun MainScreen(
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = endCalibration) { Text("End") }
                     }
-                } else if (showCalibrationSuccess) {
-                    Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        TextButton(onClick = { onSetShowSettings(true) }) { Text("Settings") }
-                    }
                 }
             }
         }
