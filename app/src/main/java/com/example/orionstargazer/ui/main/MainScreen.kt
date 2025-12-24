@@ -143,6 +143,7 @@ fun MainScreen(
         delay(650)
         val stillLocked = state.highlightedStar?.star?.name?.contains("Polaris", ignoreCase = true) == true
         if (stillLocked) {
+            onClearSelection()
             showCalibrationSuccess = true
             onDismissCalibrationChallenge()
             delay(1400)
@@ -152,6 +153,7 @@ fun MainScreen(
 
     val endCalibration: () -> Unit = {
         onDismissCalibrationChallenge()
+        onClearSelection()
         onSetShowSettings(true)
     }
 
