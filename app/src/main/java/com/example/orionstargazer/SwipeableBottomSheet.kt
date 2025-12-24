@@ -46,11 +46,13 @@ fun SwipeableBottomSheet(
         contentAlignment = Alignment.TopCenter
     ) {
         orientationContent()
+        val liftAmount = 36.dp
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(sheetHeight)
                 .offset { IntOffset(0, offsetPx.value.roundToInt()) }
+                .padding(bottom = liftAmount)
                 .align(Alignment.BottomCenter)
                 .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
                 .background(Color(0xCC050617))

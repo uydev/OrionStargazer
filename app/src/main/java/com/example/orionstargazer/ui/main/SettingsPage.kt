@@ -236,11 +236,6 @@ fun SettingsPage(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFCFE0FF)
                     )
-                    Text(
-                        text = "Wiring/persistence will be added next.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFA9C6FF)
-                    )
                 }
             }
             Card(
