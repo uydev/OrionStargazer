@@ -108,6 +108,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onOpenMainMenu = { showMainScreen = false },
                         onShowXyOverlayChanged = { enabled -> vm.setShowXyOverlay(enabled) },
+                        onShowCameraBackgroundChanged = { enabled -> vm.setShowCameraBackground(enabled) },
                         onStartCalibrationChallenge = { vm.setShowCalibrationChallenge(true) },
                         onDismissCalibrationChallenge = { vm.setShowCalibrationChallenge(false) }
                     )

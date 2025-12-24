@@ -50,6 +50,7 @@ fun SettingsPage(
     onShaderMaxStarsChanged: (Int) -> Unit,
     onConstellationDrawModeChanged: (ConstellationDrawMode) -> Unit,
     onShowXyOverlayChanged: (Boolean) -> Unit,
+    onShowCameraBackgroundChanged: (Boolean) -> Unit,
     onStartCalibrationChallenge: () -> Unit
 ) {
     val shaderSupported = state.starRenderCapabilities?.supportsCustomShaderGlow == true
@@ -233,6 +234,36 @@ fun SettingsPage(
                     }
                     Text(
                         text = "Shows subtle X (tilt) and Y (heading) sliders on-screen to help verify sensor response.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFCFE0FF)
+                    )
+                }
+            }
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xCC0D1230)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Camera background",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFEAF2FF),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = state.showCameraBackground,
+                            onCheckedChange = onShowCameraBackgroundChanged
+                        )
+                    }
+                    Text(
+                        text = "When enabled, Stargazing uses the live camera feed as the backdrop; leave it off to keep the simulated night sky.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFCFE0FF)
                     )

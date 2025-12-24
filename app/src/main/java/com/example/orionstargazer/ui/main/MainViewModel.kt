@@ -103,6 +103,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun setShowCameraBackground(show: Boolean) {
+        state = state.copy(showCameraBackground = show)
+        viewModelScope.launch {
+            UserSettings.setShowCameraBackground(getApplication(), show)
+        }
+    }
+
     fun setShowCalibrationChallenge(show: Boolean) {
         state = state.copy(showCalibrationChallenge = show)
     }
@@ -155,6 +162,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             UserSettings.showXyOverlayFlow(getApplication()).collectLatest { enabled ->
                 state = state.copy(showXyOverlay = enabled)
+            }
+        }
+        viewModelScope.launch {
+            UserSettings.showCameraBackgroundFlow(getApplication()).collectLatest { enabled ->
+                state = state.copy(showCameraBackground = enabled)
             }
         }
 

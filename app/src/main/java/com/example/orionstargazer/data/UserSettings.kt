@@ -19,6 +19,7 @@ object UserSettings {
     private val KEY_SHADER_MAX_STARS = intPreferencesKey("shader_max_stars")
     private val KEY_CONSTELLATION_DRAW_MODE = stringPreferencesKey("constellation_draw_mode")
     private val KEY_SHOW_XY_OVERLAY = intPreferencesKey("show_xy_overlay")
+    private val KEY_SHOW_CAMERA_BACKGROUND = intPreferencesKey("show_camera_background")
 
     /** Default roughly matches naked-eye suburban-ish sky. */
     const val DEFAULT_MAX_MAGNITUDE: Double = 6.0
@@ -26,6 +27,7 @@ object UserSettings {
     const val DEFAULT_SHADER_MAX_STARS: Int = 1200
     val DEFAULT_CONSTELLATION_DRAW_MODE: ConstellationDrawMode = ConstellationDrawMode.DETECTED
     const val DEFAULT_SHOW_XY_OVERLAY: Boolean = false
+    const val DEFAULT_SHOW_CAMERA_BACKGROUND: Boolean = false
 
     fun maxMagnitudeFlow(context: Context): Flow<Double> =
         context.dataStore.data.map { prefs ->
@@ -87,7 +89,15 @@ object UserSettings {
             prefs[KEY_SHOW_XY_OVERLAY] = if (enabled) 1 else 0
         }
     }
+
+    fun showCameraBackgroundFlow(context: Context): Flow<Boolean> =
+        context.dataStore.data.map { prefs ->
+            (prefs[KEY_SHOW_CAMERA_BACKGROUND] ?: if (DEFAULT_SHOW_CAMERA_BACKGROUND) 1 else 0) == 1
+        }
+
+    suspend fun setShowCameraBackground(context: Context, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SHOW_CAMERA_BACKGROUND] = if (enabled) 1 else 0
+        }
+    }
 }
-
-
-

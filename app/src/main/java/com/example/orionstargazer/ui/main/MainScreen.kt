@@ -56,6 +56,7 @@ import com.example.orionstargazer.ui.SelectedStarCard
 import com.example.orionstargazer.ui.SkyStatusBar
 import com.example.orionstargazer.ui.OrientationDisplay
 import com.example.orionstargazer.ui.XYTiltOverlay
+import com.example.orionstargazer.ui.CameraBackgroundPreview
 import com.example.orionstargazer.ui.CalibrationChallengeDialog
 import com.example.orionstargazer.ui.ApproxReticleStarSelector
 import com.example.orionstargazer.ui.CalibrationGuidanceOverlay
@@ -86,12 +87,13 @@ fun MainScreen(
     onPinchMagnitudeChange: (Float) -> Unit = {},
     onOpenMainMenu: () -> Unit,
     onShowXyOverlayChanged: (Boolean) -> Unit,
+    onShowCameraBackgroundChanged: (Boolean) -> Unit,
     onStartCalibrationChallenge: () -> Unit,
     onDismissCalibrationChallenge: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.showSettings) {
-        SettingsPage(
+            SettingsPage(
             state = state,
             onBack = {
                 onSetShowSettings(false)
@@ -101,6 +103,7 @@ fun MainScreen(
             onShaderMaxStarsChanged = onShaderMaxStarsChanged,
             onConstellationDrawModeChanged = onConstellationDrawModeChanged,
             onShowXyOverlayChanged = onShowXyOverlayChanged,
+                onShowCameraBackgroundChanged = onShowCameraBackgroundChanged,
             onStartCalibrationChallenge = {
                 onSetShowSettings(false)
                 onStartCalibrationChallenge()
@@ -161,7 +164,17 @@ fun MainScreen(
         modifier = modifier.fillMaxSize()
     ) {
         FrameRateTracker(onFps = onFpsSample)
-        NightSkyBackground(modifier = Modifier.fillMaxSize())
+        val showNightSkyBackground = state.showCalibrationChallenge ||
+            !state.showCameraBackground ||
+            !state.cameraPermissionGranted
+        if (showNightSkyBackground) {
+            NightSkyBackground(modifier = Modifier.fillMaxSize())
+        } else {
+            CameraBackgroundPreview(
+                modifier = Modifier.fillMaxSize(),
+                enabled = state.cameraPermissionGranted
+            )
+        }
         if (!state.showCalibrationChallenge && !showCalibrationSuccess) {
             SkyStatusBar(
                 cameraOk = state.cameraPermissionGranted,
