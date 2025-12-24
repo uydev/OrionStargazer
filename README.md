@@ -59,4 +59,5 @@ OrionStargazer is an Android-first augmented reality stargazing experience built
 - Use Settings to toggle shader modes or pin “Hybrid” detection for both the highlighted constellation and nearby context.
 - When the bottom sheet is fully collapsed, drag the subtle handle area at the screen bottom to bring it back up.
 - Calibration challenge: open Settings → “Start challenge” and follow the target Az/Alt + arrows until Polaris is centered; “End” returns to Settings.
+- If you place the phone flat on a table so the camera points toward the ground (the reticle is looking down), the app is still calculating which stars lie in that direction, so you’re effectively looking at the sky that sits opposite your current location on Earth; rotate the device to point toward the horizon or zenith to see the stars that are actually in front of you.
 
