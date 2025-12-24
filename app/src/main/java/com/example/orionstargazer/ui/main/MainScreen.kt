@@ -215,21 +215,25 @@ fun MainScreen(
                     )
                 }
             }
-        } else if (!state.showCalibrationChallenge) {
-            PermissionCallout(
-                title = "Permissions needed",
-                message = "Enable Camera (and Location for accurate sky alignment).",
-                primaryActionText = "Grant",
-                onPrimaryAction = onRequestPermissions,
-                secondaryActionText = "Settings",
-                onSecondaryAction = onOpenAppSettings,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(18.dp)
-            )
         } else {
-            // Calibration mode: keep the starry background visible (no AR surface).
-            ReticleOverlay()
+            if (!state.cameraPermissionGranted || !state.locationPermissionGranted) {
+                PermissionCallout(
+                    title = "Permissions needed",
+                    message = "Enable Camera (and Location for accurate sky alignment).",
+                    primaryActionText = "Grant",
+                    onPrimaryAction = onRequestPermissions,
+                    secondaryActionText = "Settings",
+                    onSecondaryAction = onOpenAppSettings,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(18.dp)
+                )
+            }
+
+            if (state.showCalibrationChallenge) {
+                // Calibration mode: keep the starry background visible (no AR surface).
+                ReticleOverlay()
+            }
         }
 
         if (showArSurface) {
