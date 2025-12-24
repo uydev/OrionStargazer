@@ -21,7 +21,7 @@ OrionStargazer is an Android-first augmented reality stargazing experience built
    - Pinch-to-adjust sensitivity quickly changes the magnitude limit on-screen.
    - Overlay compass + SkyStatusBar keep orientation, FPS, shader caps, and permissions visible at all times.
    - Optional X/Y overlay toggle (shows subtle on-screen sliders for pitch/altitude + heading/azimuth to verify sensor response).
-  - Optional camera background toggle to switch Stargazing mode between the simulated sky and a live camera feed.
+   - Optional camera background toggle to switch Stargazing mode between the simulated sky and a live camera feed.
 5. **Calibration challenge (Polaris)**:
    - A guided “sanity check” you can start from Settings to verify sensors + reticle behavior.
    - Shows live target Az/Alt for Polaris with on-screen guidance arrows; challenge completes when Polaris is centered.
