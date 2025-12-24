@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -292,6 +293,11 @@ fun MainScreen(
                         TextButton(onClick = { onSetShowSettings(true) }) { Text("Settings") }
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = endCalibration) { Text("End") }
+                    }
+                } else if (showCalibrationSuccess) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        TextButton(onClick = { onSetShowSettings(true) }) { Text("Settings") }
                     }
                 }
             }
