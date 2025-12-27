@@ -25,7 +25,10 @@ import kotlinx.coroutines.isActive
 fun ReticleStarSelector(
     sceneView: ArSceneView?,
     stars: List<StarPositionCalculator.VisibleStar>,
-    reticleSize: Dp = 48.dp,
+    deviceAzimuth: Float,
+    deviceAltitude: Float,
+    reticleSize: Dp = 96.dp,
+    reticleRadiusDeg: Double = 4.0,
     onStarChanged: (StarPositionCalculator.VisibleStar?) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -36,7 +39,14 @@ fun ReticleStarSelector(
         while (isActive) {
             withFrameNanos { /* sync */ }
 
-            val candidate = computeStarInReticle(sceneView, stars, reticleSize.value * density.density)
+            val candidate = computeStarInReticle(
+                sceneView = sceneView,
+                stars = stars,
+                reticleSizePx = reticleSize.value * density.density,
+                deviceAzimuth = deviceAzimuth,
+                deviceAltitude = deviceAltitude,
+                reticleRadiusDeg = reticleRadiusDeg
+            )
             val candidateId = candidate?.star?.id
             if (candidateId != lastEmitId) {
                 lastEmitId = candidateId
@@ -49,7 +59,10 @@ fun ReticleStarSelector(
 private fun computeStarInReticle(
     sceneView: ArSceneView?,
     stars: List<StarPositionCalculator.VisibleStar>,
-    reticleSizePx: Float
+    reticleSizePx: Float,
+    deviceAzimuth: Float,
+    deviceAltitude: Float,
+    reticleRadiusDeg: Double
 ): StarPositionCalculator.VisibleStar? {
     if (sceneView == null) return null
     if (sceneView.width <= 0 || sceneView.height <= 0) return null
@@ -75,15 +88,25 @@ private fun computeStarInReticle(
         val screenPos = ScreenProjectionUtil.projectWorldToScreen(sceneView, worldPos) ?: return@forEach
         val x = screenPos.x.toFloat()
         val y = screenPos.y.toFloat()
-        if (x in left..right && y in top..bottom) {
-            val dist = ((x - centerX).pow(2) + (y - centerY).pow(2))
-            if (dist < minDist) {
+        val pixelMatch = x in left..right && y in top..bottom
+        val angularDist = StarPositionCalculator.viewDistanceDegrees(
+            star.azimuth, star.altitude, deviceAzimuth, deviceAltitude
+        )
+        val angularMatch = angularDist <= reticleRadiusDeg
+        if (pixelMatch || angularMatch) {
+            val distScore = if (pixelMatch) {
+                ((x - centerX).pow(2) + (y - centerY).pow(2))
+            } else {
+                (angularDist.toFloat() * 1000f).also { /* scale to pixel units */ }
+            }
+            if (distScore < minDist) {
                 candidate = star
-                minDist = dist
+                minDist = distScore
             }
         }
     }
 
     return candidate
 }
+
 

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -117,8 +118,7 @@ fun MainScreen(
     var showCalibrationDialog by rememberSaveable { mutableStateOf(false) }
     var showCalibrationSuccess by rememberSaveable { mutableStateOf(false) }
 
-    val isPolarisLocked =
-        state.highlightedStar?.star?.name?.contains("Polaris", ignoreCase = true) == true
+    val isPolarisLocked = state.highlightedStar?.star?.name?.contains("Polaris", ignoreCase = true) == true
 
     val showArSurface = state.cameraPermissionGranted && !state.showCalibrationChallenge && !showCalibrationSuccess
 
@@ -249,6 +249,8 @@ fun MainScreen(
             ReticleStarSelector(
                 sceneView = sceneView,
                 stars = state.starsInView,
+                deviceAzimuth = state.azimuth,
+                deviceAltitude = state.altitude,
                 onStarChanged = onReticleStarChanged
             )
         } else if (state.showCalibrationChallenge) {
@@ -516,9 +518,31 @@ fun MainScreen(
         }
 
         if (state.showHighlights) {
+            val highlightStrings = if (showArSurface && sceneView != null) {
+                // Use pixel-based reticle hit-test when AR is active
+                val highlightRadiusDeg = 15.0 // Larger angular zone for highlights
+                state.starsInView
+                    .map { star ->
+                        val dist = com.example.orionstargazer.domain.astronomy.StarPositionCalculator.viewDistanceDegrees(
+                            star.azimuth, star.altitude, state.azimuth, state.altitude)
+                        star to dist
+                    }
+                    .filter { (_, dist) -> dist <= highlightRadiusDeg }
+                    .sortedWith(compareBy({ it.second }, { it.first.star.magnitude }))
+                    .take(4)
+                    .mapIndexed { idx, (star, _) ->
+                        val mag = "%.2f".format(star.star.magnitude)
+                        val alt = "%.0f".format(star.altitude)
+                        val az = "%.0f".format(star.azimuth)
+                        "${idx + 1}. ${star.star.name} • mag $mag • Alt $alt° Az $az°"
+                    }
+            } else {
+                // Fall back to ViewModel angular highlights
+                state.highlights
+            }
             Dialog(onDismissRequest = { onSetShowHighlights(false) }) {
                 HighlightsScreen(
-                    highlights = if (state.highlights.isNotEmpty()) state.highlights else listOf("Scanning night sky…"),
+                    highlights = if (highlightStrings.isNotEmpty()) highlightStrings else listOf("Scanning night sky…"),
                     modifier = Modifier.fillMaxSize()
                 )
             }

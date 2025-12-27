@@ -405,12 +405,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun buildHighlights(visible: List<StarPositionCalculator.VisibleStar>): List<String> {
         if (visible.isEmpty()) return emptyList()
-        return visible.take(4).mapIndexed { index, star ->
-            val mag = "%.2f".format(star.star.magnitude)
-            val alt = "%.0f".format(star.altitude)
-            val az = "%.0f".format(star.azimuth)
-            "${index + 1}. ${star.star.name} • mag $mag • Alt $alt° Az $az°"
+        // Fetch device orientation and reticle FOV -- must match ReticleStarSelector logic.
+        val az = state.azimuth
+        val alt = state.altitude
+        val reticleFov = 8.0 // degrees, approximate zone around reticle (tune to taste)
+        // Only highlight stars/objects within this range of the reticle center.
+        return visible.filter {
+            StarPositionCalculator.viewDistanceDegrees(
+                it.azimuth, it.altitude, az, alt
+            ) <= reticleFov / 2
         }
+            .sortedBy { it.star.magnitude }
+            .take(4)
+            .mapIndexed { index, star ->
+                val mag = "%.2f".format(star.star.magnitude)
+                val sal = "%.0f".format(star.altitude)
+                val saz = "%.0f".format(star.azimuth)
+                "${index + 1}. ${star.star.name} • mag $mag • Alt $sal° Az $saz°"
+            }
     }
 }
 

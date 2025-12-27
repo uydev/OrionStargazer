@@ -25,6 +25,18 @@ object PlanetCalculator {
     )
 
     fun computePlanets(calendar: Calendar): List<PlanetPosition> {
+        // Add Earth\'s Moon
+        // Values from Paul Schlyter, not highly precise but good enough for AR
+        fun elementsMoon(d: Double): Elements {
+            return Elements(
+                N = 125.1228 - 0.0529538083 * d,
+                i = 5.1454,
+                w = 318.0634 + 0.1643573223 * d,
+                a = 60.2666 / 149597870.7, // Distance from Earth to Moon in AU (~384,400 km)
+                e = 0.054900,
+                M = 115.3654 + 13.0649929509 * d
+            )
+        }
         val jd = CoordinateConverter.julianDate(calendar)
         val d = jd - 2451545.0 // days since J2000.0
 
@@ -53,6 +65,7 @@ object PlanetCalculator {
         }
 
         val planets = listOf(
+            planet("Moon", 0, elementsMoon(d), d, earth, ::toRaDec, mag = -12.0),
             planet("Mercury", 1, elementsMercury(d), d, earth, ::toRaDec, mag = -0.2),
             planet("Venus", 2, elementsVenus(d), d, earth, ::toRaDec, mag = -4.0),
             planet("Mars", 3, elementsMars(d), d, earth, ::toRaDec, mag = 0.5),
@@ -213,4 +226,5 @@ object PlanetCalculator {
         return x
     }
 }
+
 

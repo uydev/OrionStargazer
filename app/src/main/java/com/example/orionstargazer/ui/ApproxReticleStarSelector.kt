@@ -17,7 +17,7 @@ fun ApproxReticleStarSelector(
     deviceAzimuth: Float,
     deviceAltitude: Float,
     stars: List<StarPositionCalculator.VisibleStar>,
-    reticleRadiusDeg: Double = 3.0,
+    reticleRadiusDeg: Double = 7.5,
     onStarChanged: (StarPositionCalculator.VisibleStar?) -> Unit,
 ) {
     LaunchedEffect(deviceAzimuth, deviceAltitude, stars, reticleRadiusDeg) {
